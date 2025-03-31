@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Online Users - Milledgeville Alert Map</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>Online Users - Milledgeville Alert Map</h1>
+    </header>
+    <div class="admin-container" id="online-container">
+      <div class="controls">
+        <button onclick="window.location.href='admin.html'">Back to Admin</button>
+        <button onclick="signOut()">Sign Out</button>
+      </div>
+      <div class="admin-section">
+        <h2>Current Online Users</h2>
+        <div id="online-list"></div>
+      </div>
+    </div>
+  </div>
+  <script src="js/online.js"></script>
+</body>
+</html>
