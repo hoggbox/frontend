@@ -27,7 +27,7 @@ function getDistance(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
-function initMap() {  // Global for Google Maps callback
+function initMap() {  
   map = new google.maps.Map(document.getElementById('map'), {
     zoom: 12,
     styles: [
@@ -50,6 +50,7 @@ function initMap() {  // Global for Google Maps callback
       setupWebSocket();
       checkNewMessages();
       document.getElementById('admin-btn').style.display = isAdmin ? 'inline-block' : 'none';
+      setInterval(refreshPage, 5000); // Refresh every 5 seconds
     } catch (err) {
       console.error('Invalid token:', err);
       signOut();
@@ -57,6 +58,24 @@ function initMap() {  // Global for Google Maps callback
   } else {
     showLogin();
   }
+
+  document.getElementById('profile-picture').addEventListener('change', (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        document.getElementById('profile-picture-preview').src = e.target.result;
+        document.getElementById('profile-picture-preview').style.display = 'block';
+      };
+      reader.readAsDataURL(file);
+    }
+  });
+}
+
+function refreshPage() {
+  fetchPins();
+  checkNewMessages();
+  fetchWeatherAlerts();
 }
 
 async function fetchProfileForUsername() {
@@ -126,6 +145,15 @@ function setupWebSocket() {
       addChatMessage(data);
     } else if (data.type === 'privateMessage') {
       checkNewMessages();
+      fetchMessages();
+    } else if (data.type === 'newPin') {
+      fetchPins();
+    } else if (data.type === 'newComment') {
+      const pinId = data.pinId;
+      if (document.getElementById(`comment-modal-${pinId}`)) {
+        showComments(pinId);
+      }
+      fetchPins();
     }
   };
   ws.onclose = () => {
@@ -141,7 +169,7 @@ function addChatMessage(data) {
   const messageDiv = document.createElement('div');
   messageDiv.className = 'chat-message';
   messageDiv.innerHTML = `
-    <span class="username">${data.username || 'Unknown'}</span>:
+    <span class="username">${data.username || data.userId || 'Unknown'}</span>:
     ${data.message}
     <span class="timestamp">${new Date(data.timestamp).toLocaleTimeString()}</span>
   `;
@@ -153,12 +181,8 @@ function sendChatMessage() {
   const messageInput = document.getElementById('chat-input');
   const message = messageInput.value.trim();
   if (!message) return;
-  if (!username) {
-    if (confirm('You need a username to chat. Set one in your profile?')) editProfile();
-    return;
-  }
   if (ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({ type: 'chat', userId, username, message }));
+    ws.send(JSON.stringify({ type: 'chat', userId, username: username || 'Anonymous', message }));
     messageInput.value = '';
   } else {
     alert('Chat connection not available.');
@@ -300,52 +324,37 @@ async function login() {
   }
 
   try {
-    console.log('Attempting login with:', { email, password, stayLoggedIn });
     const response = await fetch('https://pinmap-website.onrender.com/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password, stayLoggedIn }),
-    }).catch(err => {
-      console.error('Fetch error:', err);
-      throw new Error(`Network error: ${err.message}. Is the server running on https://pinmap-website.onrender.com?`);
     });
-
-    console.log('Login response:', response);
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Login failed with status:', response.status, errorText);
-      alert(`Login failed: ${errorText || 'Invalid credentials'} (Status: ${response.status})`);
+      alert(`Login failed: ${errorText || 'Invalid credentials'}`);
       return;
     }
 
     const data = await response.json();
-    console.log('Login data:', data);
-
     if (data.token) {
       token = data.token;
       localStorage.setItem('token', token);
-      try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        userId = payload.id;
-        isAdmin = payload.email === 'imhoggbox@gmail.com';
-        console.log('User logged in:', { userId, isAdmin });
-        fetchProfileForUsername();
-        showMap();
-        startMap();
-        fetchWeatherAlerts();
-        setupWebSocket();
-        checkNewMessages();
-      } catch (err) {
-        console.error('Token parsing error:', err);
-        alert('Invalid token received. Please try again.');
-      }
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      userId = payload.id;
+      isAdmin = payload.email === 'imhoggbox@gmail.com';
+      fetchProfileForUsername();
+      showMap();
+      startMap();
+      fetchWeatherAlerts();
+      setupWebSocket();
+      checkNewMessages();
     } else {
       alert(`Login failed: ${data.message || 'No token received'}`);
     }
   } catch (err) {
     console.error('Login error:', err);
-    alert(err.message);
+    alert('Error during login. Please try again.');
   }
 }
 
@@ -388,8 +397,8 @@ async function addPin() {
   }
 
   const pinType = document.getElementById('pin-type').value;
-  const descriptionInput = document.getElementById('description').value;
-  const description = pinType || descriptionInput;
+  const descriptionInput = document.getElementById('description').value.trim();
+  const description = descriptionInput || pinType;
   const mediaFile = document.getElementById('media-upload').files[0];
   const formData = new FormData();
   formData.append('latitude', currentLatLng.lat);
@@ -403,6 +412,9 @@ async function addPin() {
     body: formData,
   });
   if (postResponse.ok) {
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'newPin', pin: { latitude: currentLatLng.lat, longitude: currentLatLng.lng, description } }));
+    }
     fetchPins();
     document.getElementById('pin-type').value = '';
     document.getElementById('description').value = '';
@@ -523,6 +535,9 @@ async function addComment(pinId, parentCommentId = null) {
       body: JSON.stringify({ content: finalContent, parentCommentId })
     });
     if (response.ok) {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'newComment', pinId }));
+      }
       closeComments();
       showComments(pinId);
     } else {
@@ -752,12 +767,9 @@ async function fetchPins() {
     filteredPins.forEach(pin => {
       if (!markers[pin._id]) {
         const desc = pin.description.toLowerCase();
-        const icon = desc === 'cop' || desc === 'police' ? { url: 'https://img.icons8.com/?size=100&id=fHTZqkybfaA7&format=png&color=000000', scaledSize: new google.maps.Size(32, 32) }
-                  : desc === 'gun' || desc === 'shooting' || desc === 'driveby' || desc === 'shootout' ? { url: 'https://img.icons8.com/?size=100&id=10431&format=png&color=000000', scaledSize: new google.maps.Size(32, 32) }
-                  : desc === 'fire' ? { url: 'https://img.icons8.com/?size=100&id=85292&format=png&color=000000', scaledSize: new google.maps.Size(32, 32) }
-                  : desc === 'roadblock' ? { url: 'https://img.icons8.com/?size=100&id=8g0W0dI0kZNi&format=png&color=000000', scaledSize: new google.maps.Size(32, 32) }
-                  : desc === 'wreck' || desc === 'crash' ? { url: 'https://img.icons8.com/?size=100&id=8g0W0dI0kZNi&format=png&color=000000', scaledSize: new google.maps.Size(32, 32) }
-                  : 'http://maps.google.com/mapfiles/ms/icons/red-dot.png';
+        const icon = desc.includes('cop') || desc.includes('police') ? 
+          { url: 'https://img.icons8.com/?size=100&id=fHTZqkybfaA7&format=png&color=000000', scaledSize: new google.maps.Size(32, 32) } :
+          'http://maps.google.com/mapfiles/ms/icons/red-dot.png';
         markers[pin._id] = new google.maps.Marker({
           position: { lat: pin.latitude, lng: pin.longitude },
           map: map,
@@ -861,7 +873,8 @@ async function fetchProfile() {
     });
     if (response.ok) {
       const profile = await response.json();
-      document.getElementById('profile-picture-preview').src = profile.profilePicture || 'https://via.placeholder.com/150';
+      document.getElementById('profile-picture-preview').src = profile.profilePicture ? 
+        `https://pinmap-website.onrender.com${profile.profilePicture}` : 'https://via.placeholder.com/150';
       document.getElementById('profile-picture-preview').style.display = 'block';
       document.getElementById('profile-username').value = profile.username || '';
       document.getElementById('profile-birthdate').value = profile.birthdate ? profile.birthdate.split('T')[0] : '';
@@ -893,6 +906,7 @@ async function updateProfile() {
     });
     if (response.ok) {
       fetchProfileForUsername();
+      fetchProfile();
       showMap();
     } else {
       alert(await response.text());
@@ -915,7 +929,8 @@ async function viewProfile(userIdToView) {
     });
     if (response.ok) {
       const profile = await response.json();
-      document.getElementById('view-profile-picture').src = profile.profilePicture || 'https://via.placeholder.com/150';
+      document.getElementById('view-profile-picture').src = profile.profilePicture ? 
+        `https://pinmap-website.onrender.com${profile.profilePicture}` : 'https://via.placeholder.com/150';
       document.getElementById('view-profile-picture').style.display = 'block';
       document.getElementById('view-username').textContent = profile.username || profile.email;
       document.getElementById('view-location').textContent = profile.location || 'Not set';
@@ -985,9 +1000,13 @@ async function sendPrivateMessage() {
     });
     if (response.ok) {
       messageInput.value = '';
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'privateMessage', recipientId: currentProfileUserId, senderId: userId, content: message }));
+      }
       alert('Message sent');
+      fetchMessages();
     } else {
-      alert(await response.text());
+      alert(`Failed to send message: ${await response.text()}`);
     }
   } catch (err) {
     console.error('Send message error:', err);
@@ -1010,17 +1029,42 @@ async function fetchMessages() {
         msgDiv.innerHTML = `
           <p><strong>${msg.sender.username || msg.sender.email}</strong> (${new Date(msg.timestamp).toLocaleString()}):</p>
           <p>${msg.content}</p>
+          <button onclick="replyToMessage('${msg.sender._id}')">Reply</button>
         `;
         messagesList.appendChild(msgDiv);
       });
       document.getElementById('map-container').style.display = 'none';
       document.getElementById('messages-container').style.display = 'block';
     } else {
-      alert('Failed to fetch messages');
+      alert(`Failed to fetch messages: ${await response.text()}`);
     }
   } catch (err) {
     console.error('Fetch messages error:', err);
     alert('Error fetching messages');
+  }
+}
+
+async function replyToMessage(recipientId) {
+  const message = prompt('Enter your reply:');
+  if (!message) return;
+  try {
+    const response = await fetch(`https://pinmap-website.onrender.com/messages/send/${recipientId}`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: message })
+    });
+    if (response.ok) {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'privateMessage', recipientId, senderId: userId, content: message }));
+      }
+      alert('Reply sent');
+      fetchMessages();
+    } else {
+      alert(`Failed to send reply: ${await response.text()}`);
+    }
+  } catch (err) {
+    console.error('Reply error:', err);
+    alert('Error sending reply');
   }
 }
 
@@ -1031,7 +1075,7 @@ async function checkNewMessages() {
     });
     if (response.ok) {
       const unreadCount = await response.json();
-      const messagesBtn = document.querySelector('#map-container .controls button:nth-child(2)');
+      const messagesBtn = document.querySelector('#map-container .controls button:nth-child(4)');
       messagesBtn.textContent = `Messages${unreadCount > 0 ? ` (${unreadCount})` : ''}`;
     }
   } catch (err) {
