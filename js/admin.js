@@ -18,7 +18,7 @@ function checkAdmin() {
       alert('Access denied: Admin only');
       window.location.href = 'index.html';
     } else {
-      fetchUsers(); // Fetch users immediately if admin
+      fetchUsers();
     }
   } catch (err) {
     console.error('Invalid token:', err);
@@ -127,7 +127,7 @@ function applyFilter(users) {
     case 'active': filteredUsers = filteredUsers.filter(user => user.lastLogin && new Date(user.lastLogin) > thirtyDaysAgo); break;
     case 'highActivity': filteredUsers = filteredUsers.filter(user => user.totalPins > 10); break;
     case 'banned': filteredUsers = filteredUsers.filter(user => user.isBanned); break;
-    case 'all': break; // No additional filtering
+    case 'all': break;
   }
   return filteredUsers;
 }
@@ -185,7 +185,7 @@ async function deleteSelected() {
 async function banSelected() {
   const selected = Array.from(document.querySelectorAll('.user-select:checked')).map(cb => {
     const row = cb.closest('tr');
-    return row.cells[3].textContent; // IP Address column
+    return row.cells[3].textContent;
   }).filter(ip => ip && ip !== 'Unknown');
   if (selected.length === 0) return alert('No valid IPs selected');
   if (!confirm(`Are you sure you want to ban ${selected.length} IP(s)?`)) return;
@@ -252,6 +252,10 @@ async function banUser(ipAddress) {
 }
 
 function updateChart(users) {
+  if (typeof Chart === 'undefined') {
+    console.error('Chart.js not loaded');
+    return;
+  }
   const ctx = document.getElementById('registration-chart').getContext('2d');
   const registrationsByDate = {};
   users.forEach(user => {
