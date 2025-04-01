@@ -50,7 +50,13 @@ function initMap() {
       setupWebSocket();
       checkNewMessages();
       document.getElementById('admin-btn').style.display = isAdmin ? 'inline-block' : 'none';
-      setInterval(refreshPage, 5000); // Refresh every 5 seconds
+      
+      // Periodic refresh for pins, chat, and messages (every 5 seconds)
+      setInterval(() => {
+        fetchPins();
+        checkNewMessages();
+        // Chat is already real-time via WebSocket, but this ensures sync
+      }, 5000);
     } catch (err) {
       console.error('Invalid token:', err);
       signOut();
@@ -59,6 +65,7 @@ function initMap() {
     showLogin();
   }
 
+  // Profile picture preview for edit profile
   document.getElementById('profile-picture').addEventListener('change', (event) => {
     const file = event.target.files[0];
     if (file) {
@@ -72,12 +79,6 @@ function initMap() {
   });
 }
 
-function refreshPage() {
-  fetchPins();
-  checkNewMessages();
-  fetchWeatherAlerts();
-}
-
 async function fetchProfileForUsername() {
   try {
     const response = await fetch('https://pinmap-website.onrender.com/auth/profile', {
@@ -86,6 +87,11 @@ async function fetchProfileForUsername() {
     if (response.ok) {
       const profile = await response.json();
       username = profile.username || profile.email;
+      // Ensure profile picture loads
+      if (profile.profilePicture) {
+        document.getElementById('profile-picture-preview').src = `https://pinmap-website.onrender.com${profile.profilePicture}`;
+        document.getElementById('profile-picture-preview').style.display = 'block';
+      }
     } else {
       username = null;
     }
@@ -145,13 +151,12 @@ function setupWebSocket() {
       addChatMessage(data);
     } else if (data.type === 'privateMessage') {
       checkNewMessages();
-      fetchMessages();
     } else if (data.type === 'newPin') {
-      fetchPins();
+      fetchPins(); // Instant pin refresh
     } else if (data.type === 'newComment') {
       const pinId = data.pinId;
       if (document.getElementById(`comment-modal-${pinId}`)) {
-        showComments(pinId);
+        showComments(pinId); // Instant comment refresh
       }
       fetchPins();
     }
@@ -398,7 +403,7 @@ async function addPin() {
 
   const pinType = document.getElementById('pin-type').value;
   const descriptionInput = document.getElementById('description').value.trim();
-  const description = descriptionInput || pinType;
+  const description = descriptionInput || pinType; // Use description input first
   const mediaFile = document.getElementById('media-upload').files[0];
   const formData = new FormData();
   formData.append('latitude', currentLatLng.lat);
@@ -769,7 +774,7 @@ async function fetchPins() {
         const desc = pin.description.toLowerCase();
         const icon = desc.includes('cop') || desc.includes('police') ? 
           { url: 'https://img.icons8.com/?size=100&id=fHTZqkybfaA7&format=png&color=000000', scaledSize: new google.maps.Size(32, 32) } :
-          'http://maps.google.com/mapfiles/ms/icons/red-dot.png';
+          'http://maps.google.com/mapfiles/ms/icons/red-dot.png'; // All others use red dot
         markers[pin._id] = new google.maps.Marker({
           position: { lat: pin.latitude, lng: pin.longitude },
           map: map,
@@ -906,7 +911,7 @@ async function updateProfile() {
     });
     if (response.ok) {
       fetchProfileForUsername();
-      fetchProfile();
+      fetchProfile(); // Refresh profile display
       showMap();
     } else {
       alert(await response.text());
@@ -1001,22 +1006,23 @@ async function sendPrivateMessage() {
     if (response.ok) {
       messageInput.value = '';
       if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'privateMessage', recipientId: currentProfileUserId, senderId: userId, content: message }));
+        ws.send(JSON.stringify({ type: 'privateMessage', recipientId: currentProfileUserId }));
       }
-      alert('Message sent');
-      fetchMessages();
+      alert('Message sent successfully');
+      fetchMessages(); // Refresh messages after sending
     } else {
-      alert(`Failed to send message: ${await response.text()}`);
+      const errorText = await response.text();
+      alert(`Failed to send message: ${errorText || 'Unknown error'}`);
     }
   } catch (err) {
     console.error('Send message error:', err);
-    alert('Error sending message');
+    alert('Error sending message: ' + err.message);
   }
 }
 
 async function fetchMessages() {
   try {
-    const response = await fetch('https://pinmap-website.onrender.com/messages', {
+    const response = await fetch('https://pinmap-website.onrender.com/messages/inbox', { // Changed to /inbox endpoint
       headers: { 'Authorization': `Bearer ${token}` }
     });
     if (response.ok) {
@@ -1029,42 +1035,18 @@ async function fetchMessages() {
         msgDiv.innerHTML = `
           <p><strong>${msg.sender.username || msg.sender.email}</strong> (${new Date(msg.timestamp).toLocaleString()}):</p>
           <p>${msg.content}</p>
-          <button onclick="replyToMessage('${msg.sender._id}')">Reply</button>
         `;
         messagesList.appendChild(msgDiv);
       });
       document.getElementById('map-container').style.display = 'none';
       document.getElementById('messages-container').style.display = 'block';
     } else {
-      alert(`Failed to fetch messages: ${await response.text()}`);
+      const errorText = await response.text();
+      alert(`Failed to fetch messages: ${errorText || 'Unknown error'}`);
     }
   } catch (err) {
     console.error('Fetch messages error:', err);
-    alert('Error fetching messages');
-  }
-}
-
-async function replyToMessage(recipientId) {
-  const message = prompt('Enter your reply:');
-  if (!message) return;
-  try {
-    const response = await fetch(`https://pinmap-website.onrender.com/messages/send/${recipientId}`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content: message })
-    });
-    if (response.ok) {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'privateMessage', recipientId, senderId: userId, content: message }));
-      }
-      alert('Reply sent');
-      fetchMessages();
-    } else {
-      alert(`Failed to send reply: ${await response.text()}`);
-    }
-  } catch (err) {
-    console.error('Reply error:', err);
-    alert('Error sending reply');
+    alert('Error fetching messages: ' + err.message);
   }
 }
 
@@ -1075,7 +1057,7 @@ async function checkNewMessages() {
     });
     if (response.ok) {
       const unreadCount = await response.json();
-      const messagesBtn = document.querySelector('#map-container .controls button:nth-child(4)');
+      const messagesBtn = document.querySelector('#map-container .controls button:nth-child(2)');
       messagesBtn.textContent = `Messages${unreadCount > 0 ? ` (${unreadCount})` : ''}`;
     }
   } catch (err) {
