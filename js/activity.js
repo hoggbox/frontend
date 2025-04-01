@@ -29,7 +29,7 @@ async function fetchUserActivity() {
   const userId = urlParams.get('userId');
   
   if (!userId) {
-    alert('No user ID specified');
+    alert('No user ID specified. Returning to admin panel.');
     window.location.href = 'admin.html';
     return;
   }
@@ -66,7 +66,7 @@ async function fetchUserActivity() {
     statusSpan.className = user.onlineStatus === 'Online' ? 'online-status' : 'offline-status';
   } catch (err) {
     console.error('Fetch user activity error:', err);
-    alert('Error fetching user activity');
+    alert('Error fetching user activity: ' + err.message);
     window.location.href = 'admin.html';
   }
 }
