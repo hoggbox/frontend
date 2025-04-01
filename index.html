@@ -31,6 +31,15 @@
     #profile-view-container .profile-details { margin: 20px 0; }
     #profile-view-container button { background-color: #3498db; padding: 10px 20px; width: auto; margin-top: 10px; }
     #profile-view-container button:hover { background-color: #2980b9; }
+
+    /* Form field labels */
+    .field-label {
+      display: block;
+      text-align: left;
+      margin-bottom: 5px;
+      font-weight: bold;
+      color: #2c3e50;
+    }
   </style>
 </head>
 <body>
@@ -96,22 +105,25 @@
       <h2>Edit Profile</h2>
       <div class="profile-picture-section">
         <img id="profile-picture-preview" alt="Profile Picture" style="display: none;">
-        <label for="profile-picture">Profile Picture:</label>
         <input type="file" id="profile-picture" accept="image/*">
       </div>
-      <label for="profile-username">Username:</label>
+      <label class="field-label" for="profile-username">Username</label>
       <input type="text" id="profile-username" placeholder="Username">
-      <label for="profile-birthdate">Birthdate:</label>
+      
+      <label class="field-label" for="profile-birthdate">Birthdate</label>
       <input type="date" id="profile-birthdate">
-      <label for="profile-sex">Sex:</label>
+      
+      <label class="field-label" for="profile-sex">Sex</label>
       <select id="profile-sex">
         <option value="">Select Sex</option>
         <option value="Male">Male</option>
         <option value="Female">Female</option>
         <option value="Other">Other</option>
       </select>
-      <label for="profile-location">Location:</label>
+      
+      <label class="field-label" for="profile-location">Location</label>
       <input type="text" id="profile-location" placeholder="Location">
+      
       <div class="profile-buttons">
         <button onclick="updateProfile()">Save</button>
         <button onclick="closeProfile()">Cancel</button>
