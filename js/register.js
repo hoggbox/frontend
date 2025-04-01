@@ -27,26 +27,45 @@ async function register() {
       body: formData,
     });
     const data = await response.json();
-    if (response.ok && data.success) {
-      document.getElementById('register-form').style.display = 'none';
-      document.getElementById('success-modal').style.display = 'block';
-      setTimeout(() => window.location.href = 'index.html', 2000);
+    if (response.ok) {
+      const registerForm = document.getElementById('register-form');
+      const successModal = document.getElementById('success-modal');
+      
+      if (registerForm) registerForm.style.display = 'none';
+      if (successModal) {
+        successModal.style.display = 'block';
+      } else {
+        alert('Registration successful! Redirecting to login...');
+      }
+      
+      setTimeout(() => {
+        window.location.href = 'index.html';
+      }, 2000);
     } else {
-      alert('Registration failed: ' + (data.message || 'Unknown error'));
+      alert(`Registration failed: ${data.message || 'Unknown error'}`);
     }
   } catch (err) {
     console.error('Registration error:', err);
-    alert('Error during registration: ' + err.message);
+    alert('Error during registration. Please try again.');
   }
 }
 
-document.getElementById('profile-picture').addEventListener('change', (event) => {
+function previewProfilePicture(event) {
   const file = event.target.files[0];
   if (file) {
     const reader = new FileReader();
-    reader.onload = (e) => {
-      document.getElementById('profile-picture-preview').src = e.target.result;
+    reader.onload = function(e) {
+      const preview = document.getElementById('profile-picture-preview');
+      if (preview) {
+        preview.src = e.target.result;
+        preview.style.display = 'block';
+      }
     };
     reader.readAsDataURL(file);
   }
-});
+}
+
+const profilePictureInput = document.getElementById('profile-picture');
+if (profilePictureInput) {
+  profilePictureInput.addEventListener('change', previewProfilePicture);
+}
