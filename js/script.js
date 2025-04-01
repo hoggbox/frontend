@@ -1,34 +1,3 @@
-Ok, I understand. The `Cannot POST /messages/send/67eae16f85dc462fb96ec059` error indicates that the route for sending a private message is incorrect on the backend. I will now correct that route.
-
-Correct `routes/auth.js`:
-
-```javascript
-// Send Private Message
-router.post('/send/:id', authMiddleware, async (req, res) => {
-    const { content } = req.body;
-    try {
-        const recipient = await User.findById(req.params.id);
-        if (!recipient) return res.status(404).json({ message: 'Recipient not found' });
-        const sender = await User.findById(req.user.id);
-        const message = new Message({
-            senderId: req.user.id,
-            recipientId: req.params.id,
-            content
-        });
-        await message.save();
-        sender.activityLogs.push({ action: 'Sent private message', details: `To: ${recipient.email}` });
-        await sender.save();
-        res.json({ message: 'Message sent' });
-    } catch (err) {
-        console.error('Send message error:', err);
-        res.status(500).json({ message: 'Server error' });
-    }
-});
-```
-
-And I'm providing the complete again for `js/script.js` to be thorough.
-
-```javascript
 let token;
 let currentLatLng;
 let userId;
@@ -546,7 +515,7 @@ function renderComments(pinId, comments, parentElementId = `comment-list-${pinId
         <button class="dislike-btn" onclick="dislikeComment('${comment._id}')">Dislike (${comment.dislikes.length})</button>
         <button class="reply-btn" onclick="showReplyInput('${pinId}', '${comment._id}')">Reply</button>
       </div>
-      <div id="replies-${comment._id}" class="comment-list"></div>
+            <div id="replies-${comment._id}" class="comment-list"></div>
     `;
         commentList.appendChild(commentDiv);
         if (comment.replies.length > 0) {
@@ -571,7 +540,7 @@ async function addComment(pinId, parentCommentId = null) {
             body: JSON.stringify({ content: finalContent, parentCommentId })
         });
 
-          if (!response.ok) {
+         if (!response.ok) {
             const errorText = await response.text();
             console.error('Add comment error (non-JSON):', response.status, errorText);
             alert(`Error: ${errorText}`);
@@ -656,8 +625,7 @@ async function removePin(pinId) {
             method: 'DELETE',
             headers: { 'Authorization': `Bearer ${token}` },
         });
-
-        if (!response.ok) {
+if (!response.ok) {
             const errorText = await response.text();
             console.error('Remove pin error (non-JSON):', response.status, errorText);
             alert(`Error: ${errorText}`);
@@ -678,7 +646,7 @@ async function voteToRemove(pinId) {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${token}` }
         });
-        if (!response.ok) {
+         if (!response.ok) {
             const errorText = await response.text();
             console.error('Vote to remove error (non-JSON):', response.status, errorText);
             alert(`Error: ${errorText}`);
@@ -770,13 +738,15 @@ async function fetchPins() {
         const response = await fetch('https://pinmap-website.onrender.com/pins', {
             headers: { 'Authorization': `Bearer ${token}` },
         });
- if (!response.ok) {
+
+   if (!response.ok) {
             const errorText = await response.text();
             console.error('Fetch pins error (non-JSON):', response.status, errorText);
             alert(`Error: ${errorText}`);
             return;
         }
-        const pins = await response.json();
+
+    const pins = await response.json();
         const filteredPins = applyFilter(pins);
         document.getElementById('alert-counter').textContent = `Current Alerts: ${pins.length}`;
 
@@ -958,12 +928,13 @@ async function updateProfile() {
             body: formData
         });
 
-        if (!response.ok) {
+         if (!response.ok) {
             const errorText = await response.text();
             console.error('Update profile error (non-JSON):', response.status, errorText);
             alert(`Error: ${errorText}`);
             return;
         }
+
         fetchProfileForUsername();
         fetchProfile();
         showMap();
@@ -983,16 +954,16 @@ async function viewProfile(userIdToView) {
         const response = await fetch(`https://pinmap-website.onrender.com/auth/profile/${userIdToView}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
-        if (!response.ok) {
+   if (!response.ok) {
             const errorText = await response.text();
             console.error('View profile error (non-JSON):', response.status, errorText);
             alert(`Error: ${errorText}`);
             return;
         }
-        const profile = await response.json();
+
+    const profile = await response.json();
         document.getElementById('view-profile-picture').src = profile.profilePicture ?
             `https://pinmap-website.onrender.com${profile.profilePicture}` : 'https://via.placeholder.com/150';
-        document.getElementById('view-profile-picture').style.display = 'block';
         document.getElementById('view-username').textContent = profile.username || profile.email;
         document.getElementById('view-location').textContent = profile.location || 'Not set';
         document.getElementById('view-pin-count').textContent = profile.pinCount || 0;
@@ -1018,7 +989,7 @@ async function upvoteUser() {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${token}` }
         });
-         if (!response.ok) {
+        if (!response.ok) {
             const errorText = await response.text();
             console.error('Upvote error (non-JSON):', response.status, errorText);
             alert(`Error: ${errorText}`);
@@ -1064,7 +1035,7 @@ async function sendPrivateMessage() {
       body: JSON.stringify({ content: message })
     });
 
-     if (!response.ok) {
+    if (!response.ok) {
             const errorText = await response.text();
             console.error('Send PM error (non-JSON):', response.status, errorText);
             alert(`Error: ${errorText}`);
@@ -1072,20 +1043,20 @@ async function sendPrivateMessage() {
         }
 
     messageInput.value = '';
-      if (ws.readyState === WebSocket.OPEN) {
-          const payload = JSON.parse(atob(token.split('.')[1]));
-          ws.send(JSON.stringify({
-              type: 'privateMessage',
-              userId: payload.id,
-              recipientId: currentProfileUserId,
-              content: message
-          }));
-      }
-    alert('Message sent');
-  } catch (err) {
-    console.error('Send message error:', err);
-    alert('Error sending message');
-  }
+        if (ws.readyState === WebSocket.OPEN) {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            ws.send(JSON.stringify({
+                type: 'privateMessage',
+                userId: payload.id,
+                recipientId: currentProfileUserId,
+                content: message
+            }));
+        }
+        alert('Message sent');
+    } catch (err) {
+        console.error('Send message error:', err);
+        alert('Error sending message');
+    }
 }
 
 async function fetchMessages() {
@@ -1096,7 +1067,7 @@ async function fetchMessages() {
             }
         });
 
-        if (!response.ok) {
+     if (!response.ok) {
             const errorText = await response.text();
             console.error('Fetch messages error (non-JSON):', response.status, errorText);
             alert(`Error: ${errorText}`);
@@ -1135,18 +1106,19 @@ async function checkNewMessages() {
                 'Authorization': `Bearer ${token}`
             }
         });
-   if (!response.ok) {
+
+      if (!response.ok) {
             const errorText = await response.text();
             console.error('Check new messages error (non-JSON):', response.status, errorText);
             alert(`Error: ${errorText}`);
             return;
         }
-    const unreadCount = await response.json();
-    const messagesBtn = document.querySelector('#map-container .controls button:nth-child(2)');
-    messagesBtn.textContent = `Messages${unreadCount > 0 ? ` (${unreadCount})` : ''}`;
-  } catch (err) {
-    console.error('Check messages error:', err);
-  }
+        const unreadCount = await response.json();
+        const messagesBtn = document.querySelector('#map-container .controls button:nth-child(2)');
+        messagesBtn.textContent = `Messages${unreadCount > 0 ? ` (${unreadCount})` : ''}`;
+    } catch (err) {
+        console.error('Check messages error:', err);
+    }
 }
 
 function showAdminPanel() {
