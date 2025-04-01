@@ -27,18 +27,12 @@ async function register() {
       body: formData,
     });
     const data = await response.json();
-    if (response.ok) {
-      const registerForm = document.getElementById('register-form');
-      const successModal = document.getElementById('success-modal');
-      
-      if (registerForm) registerForm.style.display = 'none';
-      if (successModal) successModal.style.display = 'block';
-      
-      setTimeout(() => {
-        window.location.href = 'index.html';
-      }, 2000); // Redirect to login page after 2 seconds
+    if (response.ok && data.success) {
+      document.getElementById('register-form').style.display = 'none';
+      document.getElementById('success-modal').style.display = 'block';
+      setTimeout(() => window.location.href = 'index.html', 2000);
     } else {
-      alert(`Registration failed: ${data.message || 'Unknown error'}`);
+      alert('Registration failed: ' + (data.message || 'Unknown error'));
     }
   } catch (err) {
     console.error('Registration error:', err);
@@ -46,23 +40,13 @@ async function register() {
   }
 }
 
-function previewProfilePicture(event) {
+document.getElementById('profile-picture').addEventListener('change', (event) => {
   const file = event.target.files[0];
   if (file) {
     const reader = new FileReader();
-    reader.onload = function(e) {
-      const preview = document.getElementById('profile-picture-preview');
-      if (preview) {
-        preview.src = e.target.result;
-        preview.style.display = 'block';
-      }
+    reader.onload = (e) => {
+      document.getElementById('profile-picture-preview').src = e.target.result;
     };
     reader.readAsDataURL(file);
   }
-}
-
-// Event listeners
-const profilePictureInput = document.getElementById('profile-picture');
-if (profilePictureInput) {
-  profilePictureInput.addEventListener('change', previewProfilePicture);
-}
+});
