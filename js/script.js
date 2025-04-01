@@ -1,3 +1,34 @@
+Ok, I understand. The `Cannot POST /messages/send/67eae16f85dc462fb96ec059` error indicates that the route for sending a private message is incorrect on the backend. I will now correct that route.
+
+Correct `routes/auth.js`:
+
+```javascript
+// Send Private Message
+router.post('/send/:id', authMiddleware, async (req, res) => {
+    const { content } = req.body;
+    try {
+        const recipient = await User.findById(req.params.id);
+        if (!recipient) return res.status(404).json({ message: 'Recipient not found' });
+        const sender = await User.findById(req.user.id);
+        const message = new Message({
+            senderId: req.user.id,
+            recipientId: req.params.id,
+            content
+        });
+        await message.save();
+        sender.activityLogs.push({ action: 'Sent private message', details: `To: ${recipient.email}` });
+        await sender.save();
+        res.json({ message: 'Message sent' });
+    } catch (err) {
+        console.error('Send message error:', err);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+```
+
+And I'm providing the complete again for `js/script.js` to be thorough.
+
+```javascript
 let token;
 let currentLatLng;
 let userId;
@@ -739,8 +770,7 @@ async function fetchPins() {
         const response = await fetch('https://pinmap-website.onrender.com/pins', {
             headers: { 'Authorization': `Bearer ${token}` },
         });
-
-        if (!response.ok) {
+ if (!response.ok) {
             const errorText = await response.text();
             console.error('Fetch pins error (non-JSON):', response.status, errorText);
             alert(`Error: ${errorText}`);
@@ -892,7 +922,6 @@ async function fetchProfile() {
         const response = await fetch('https://pinmap-website.onrender.com/auth/profile', {
             headers: { 'Authorization': `Bearer ${token}` }
         });
-
         if (!response.ok) {
             const errorText = await response.text();
             console.error('Fetch profile error (non-JSON):', response.status, errorText);
@@ -954,7 +983,6 @@ async function viewProfile(userIdToView) {
         const response = await fetch(`https://pinmap-website.onrender.com/auth/profile/${userIdToView}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
-
         if (!response.ok) {
             const errorText = await response.text();
             console.error('View profile error (non-JSON):', response.status, errorText);
@@ -1010,6 +1038,7 @@ async function downvoteUser() {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${token}` }
         });
+
         if (!response.ok) {
             const errorText = await response.text();
             console.error('Downvote error (non-JSON):', response.status, errorText);
@@ -1029,13 +1058,13 @@ async function sendPrivateMessage() {
   const message = messageInput.value.trim();
   if (!message) return alert('Message cannot be empty');
   try {
-    const response = await fetch(`https://pinmap-website.onrender.com/messages/send/${currentProfileUserId}`, {
+    const response = await fetch(`https://pinmap-website.onrender.com/auth/send/${currentProfileUserId}`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ content: message })
     });
 
-       if (!response.ok) {
+     if (!response.ok) {
             const errorText = await response.text();
             console.error('Send PM error (non-JSON):', response.status, errorText);
             alert(`Error: ${errorText}`);
@@ -1073,6 +1102,7 @@ async function fetchMessages() {
             alert(`Error: ${errorText}`);
             return;
         }
+
         const messages = await response.json();
         const messagesList = document.getElementById('messages-list');
         messagesList.innerHTML = ''; // Clear existing messages
@@ -1105,19 +1135,18 @@ async function checkNewMessages() {
                 'Authorization': `Bearer ${token}`
             }
         });
-
-        if (!response.ok) {
+   if (!response.ok) {
             const errorText = await response.text();
             console.error('Check new messages error (non-JSON):', response.status, errorText);
             alert(`Error: ${errorText}`);
             return;
         }
-        const unreadCount = await response.json();
-        const messagesBtn = document.querySelector('#map-container .controls button:nth-child(2)');
-        messagesBtn.textContent = `Messages${unreadCount > 0 ? ` (${unreadCount})` : ''}`;
-    } catch (err) {
-        console.error('Check messages error:', err);
-    }
+    const unreadCount = await response.json();
+    const messagesBtn = document.querySelector('#map-container .controls button:nth-child(2)');
+    messagesBtn.textContent = `Messages${unreadCount > 0 ? ` (${unreadCount})` : ''}`;
+  } catch (err) {
+    console.error('Check messages error:', err);
+  }
 }
 
 function showAdminPanel() {
