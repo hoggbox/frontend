@@ -520,8 +520,7 @@ function renderComments(pinId, comments, parentElementId = `comment-list-${pinId
       <div id="replies-${comment._id}" class="comment-list"></div>
     `;
         commentList.appendChild(commentDiv);
-        if (comment.replies
-.length > 0) {
+        if (comment.replies.length > 0) {
             renderComments(pinId, comment.replies, `replies-${comment._id}`, level + 1);
         }
     });
