@@ -27,23 +27,22 @@ async function register() {
       body: formData,
     });
     const data = await response.json();
-    if (response.ok || data.token) { // Check for token even if status isn't 200
+    if (response.ok) {
       const registerForm = document.getElementById('register-form');
       const successModal = document.getElementById('success-modal');
       
       if (registerForm) registerForm.style.display = 'none';
       if (successModal) successModal.style.display = 'block';
-      else alert('Registration successful! Redirecting to login...');
       
       setTimeout(() => {
         window.location.href = 'index.html';
-      }, 2000);
+      }, 2000); // Redirect to login page after 2 seconds
     } else {
       alert(`Registration failed: ${data.message || 'Unknown error'}`);
     }
   } catch (err) {
     console.error('Registration error:', err);
-    alert('Error during registration. Please try again.');
+    alert('Error during registration: ' + err.message);
   }
 }
 
@@ -62,6 +61,7 @@ function previewProfilePicture(event) {
   }
 }
 
+// Event listeners
 const profilePictureInput = document.getElementById('profile-picture');
 if (profilePictureInput) {
   profilePictureInput.addEventListener('change', previewProfilePicture);
