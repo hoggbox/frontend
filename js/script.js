@@ -520,7 +520,8 @@ function renderComments(pinId, comments, parentElementId = `comment-list-${pinId
       <div id="replies-${comment._id}" class="comment-list"></div>
     `;
         commentList.appendChild(commentDiv);
-        if (comment.replies.length > 0) {
+        if (comment.replies
+.length > 0) {
             renderComments(pinId, comment.replies, `replies-${comment._id}`, level + 1);
         }
     });
@@ -542,7 +543,7 @@ async function addComment(pinId, parentCommentId = null) {
             body: JSON.stringify({ content: finalContent, parentCommentId })
         });
 
-       if (!response.ok) {
+          if (!response.ok) {
             const errorText = await response.text();
             console.error('Add comment error (non-JSON):', response.status, errorText);
             alert(`Error: ${errorText}`);
@@ -578,7 +579,7 @@ async function likeComment(commentId) {
             headers: { 'Authorization': `Bearer ${token}` }
         });
 
-        if (!response.ok) {
+         if (!response.ok) {
             const errorText = await response.text();
             console.error('Like comment error (non-JSON):', response.status, errorText);
             alert(`Error: ${errorText}`);
@@ -600,14 +601,14 @@ async function dislikeComment(commentId) {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${token}` }
         });
-
-        if (!response.ok) {
+         if (!response.ok) {
             const errorText = await response.text();
             console.error('Dislike comment error (non-JSON):', response.status, errorText);
             alert(`Error: ${errorText}`);
             return;
         }
-        const pinId = document.querySelector('.comment-modal').id.split('-')[2];
+
+    const pinId = document.querySelector('.comment-modal').id.split('-')[2];
         closeComments();
         showComments(pinId);
 
@@ -628,8 +629,7 @@ async function removePin(pinId) {
             method: 'DELETE',
             headers: { 'Authorization': `Bearer ${token}` },
         });
-
-        if (!response.ok) {
+    if (!response.ok) {
             const errorText = await response.text();
             console.error('Remove pin error (non-JSON):', response.status, errorText);
             alert(`Error: ${errorText}`);
@@ -651,7 +651,7 @@ async function voteToRemove(pinId) {
             headers: { 'Authorization': `Bearer ${token}` }
         });
 
-   if (!response.ok) {
+         if (!response.ok) {
             const errorText = await response.text();
             console.error('Vote to remove error (non-JSON):', response.status, errorText);
             alert(`Error: ${errorText}`);
@@ -744,7 +744,7 @@ async function fetchPins() {
             headers: { 'Authorization': `Bearer ${token}` },
         });
 
-        if (!response.ok) {
+         if (!response.ok) {
             const errorText = await response.text();
             console.error('Fetch pins error (non-JSON):', response.status, errorText);
             alert(`Error: ${errorText}`);
@@ -859,7 +859,7 @@ function changePage(delta) {
 async function fetchWeatherAlerts() {
     try {
         const response = await fetch('https://pinmap-website.onrender.com/weather');
-         if (!response.ok) {
+    if (!response.ok) {
             const errorText = await response.text();
             console.error('Weather fetch error (non-JSON):', response.status, errorText);
             alert(`Error: ${errorText}`);
@@ -897,7 +897,7 @@ async function fetchProfile() {
         const response = await fetch('https://pinmap-website.onrender.com/auth/profile', {
             headers: { 'Authorization': `Bearer ${token}` }
         });
-       if (!response.ok) {
+         if (!response.ok) {
             const errorText = await response.text();
             console.error('Fetch profile error (non-JSON):', response.status, errorText);
             alert(`Error: ${errorText}`);
@@ -933,13 +933,13 @@ async function updateProfile() {
             body: formData
         });
 
-         if (!response.ok) {
+    if (!response.ok) {
             const errorText = await response.text();
             console.error('Update profile error (non-JSON):', response.status, errorText);
             alert(`Error: ${errorText}`);
             return;
         }
-        fetchProfileForUsername();
+fetchProfileForUsername();
         fetchProfile();
         showMap();
     } catch (err) {
@@ -958,13 +958,13 @@ async function viewProfile(userIdToView) {
         const response = await fetch(`https://pinmap-website.onrender.com/auth/profile/${userIdToView}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
-
-   if (!response.ok) {
+          if (!response.ok) {
             const errorText = await response.text();
             console.error('View profile error (non-JSON):', response.status, errorText);
             alert(`Error: ${errorText}`);
             return;
         }
+
         const profile = await response.json();
         document.getElementById('view-profile-picture').src = profile.profilePicture ?
             `https://pinmap-website.onrender.com${profile.profilePicture}` : 'https://via.placeholder.com/150';
@@ -994,7 +994,7 @@ async function upvoteUser() {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${token}` }
         });
-         if (!response.ok) {
+           if (!response.ok) {
             const errorText = await response.text();
             console.error('Upvote error (non-JSON):', response.status, errorText);
             alert(`Error: ${errorText}`);
@@ -1015,7 +1015,7 @@ async function downvoteUser() {
             headers: { 'Authorization': `Bearer ${token}` }
         });
 
-       if (!response.ok) {
+        if (!response.ok) {
             const errorText = await response.text();
             console.error('Downvote error (non-JSON):', response.status, errorText);
             alert(`Error: ${errorText}`);
@@ -1040,7 +1040,7 @@ async function sendPrivateMessage() {
       body: JSON.stringify({ content: message })
     });
 
-      if (!response.ok) {
+       if (!response.ok) {
             const errorText = await response.text();
             console.error('Send PM error (non-JSON):', response.status, errorText);
             alert(`Error: ${errorText}`);
@@ -1071,12 +1071,13 @@ async function fetchMessages() {
                 'Authorization': `Bearer ${token}`
             }
         });
-   if (!response.ok) {
+ if (!response.ok) {
             const errorText = await response.text();
             console.error('Fetch messages error (non-JSON):', response.status, errorText);
             alert(`Error: ${errorText}`);
             return;
         }
+
         const messages = await response.json();
         const messagesList = document.getElementById('messages-list');
         messagesList.innerHTML = ''; // Clear existing messages
@@ -1110,14 +1111,13 @@ async function checkNewMessages() {
             }
         });
 
-     if (!response.ok) {
+    if (!response.ok) {
             const errorText = await response.text();
             console.error('Check new messages error (non-JSON):', response.status, errorText);
             alert(`Error: ${errorText}`);
             return;
         }
-
-    const unreadCount = await response.json();
+        const unreadCount = await response.json();
         const messagesBtn = document.querySelector('#map-container .controls button:nth-child(2)');
         messagesBtn.textContent = `Messages${unreadCount > 0 ? ` (${unreadCount})` : ''}`;
     } catch (err) {
