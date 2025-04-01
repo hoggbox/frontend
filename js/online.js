@@ -40,12 +40,12 @@ function setupWebSocket() {
   };
   ws.onclose = () => {
     console.log('WebSocket disconnected');
-    alert('WebSocket connection lost');
+    alert('WebSocket connection lost. Returning to admin panel.');
     window.location.href = 'admin.html';
   };
   ws.onerror = (err) => {
     console.error('WebSocket error:', err);
-    alert('WebSocket error occurred');
+    alert('WebSocket error occurred. Check your connection.');
   };
 }
 
