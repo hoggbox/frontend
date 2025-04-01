@@ -136,15 +136,6 @@
     .modal-content button:hover {
       background-color: #2980b9;
     }
-
-    /* Form field labels */
-    .field-label {
-      display: block;
-      text-align: left;
-      margin-bottom: 5px;
-      font-weight: bold;
-      color: #2c3e50;
-    }
   </style>
 </head>
 <body>
@@ -155,30 +146,17 @@
     <div id="register-form" class="login-form">
       <div class="register-container">
         <h2>Register</h2>
-         <label class="field-label" for="email">Email Address</label>
         <input type="email" id="email" placeholder="Email" required>
-
-        <label class="field-label" for="password">Password</label>
         <input type="password" id="password" placeholder="Password" required>
-
-        <label class="field-label" for="username">Username (Optional)</label>
         <input type="text" id="username" placeholder="Username (Optional)">
-
-        <label class="field-label" for="birthdate">Birthdate (Optional)</label>
         <input type="date" id="birthdate" placeholder="Birthdate (Optional)">
-
-        <label class="field-label" for="sex">Sex (Optional)</label>
         <select id="sex">
           <option value="">Select Sex (Optional)</option>
           <option value="Male">Male</option>
           <option value="Female">Female</option>
           <option value="Other">Other</option>
         </select>
-
-        <label class="field-label" for="location">Location (Optional)</label>
         <input type="text" id="location" placeholder="Location (Optional)">
-
-        <label class="field-label" for="profile-picture">Profile Picture (Optional)</label>
         <div class="profile-picture-section">
           <img id="profile-picture-preview" alt="Profile Picture Preview" style="display: none;">
           <input type="file" id="profile-picture" accept="image/*">
