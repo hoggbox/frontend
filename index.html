@@ -1,169 +1,314 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Milledgeville Alert Map</title>
-  <link rel="stylesheet" href="/css/style.css" type="text/css">
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
-  <link rel="icon" href="data:,">
-  <style>
-    body { margin: 0; padding: 0; font-family: 'Roboto', sans-serif; background: linear-gradient(135deg, #3498db, #2c3e50); color: #2c3e50; min-height: 100vh; }
-    #app { min-height: 100vh; display: flex; flex-direction: column; align-items: center; }
-    header { text-align: center; padding: 20px 0; }
-    header h1 { margin: 0; font-size: 32px; color: #ecf0f1; text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2); }
-    #auth { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; }
-    .login-container { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); width: 100%; max-width: 400px; text-align: center; display: flex; flex-direction: column; gap: 10px; height: fit-content; }
-    .login-container h2 { margin: 0 0 10px; font-size: 28px; color: #2c3e50; }
-    .login-container input[type="email"], .login-container input[type="password"] { width: 100%; padding: 12px; margin: 0; border: 1px solid #ddd; border-radius: 5px; font-size: 16px; box-sizing: border-box; }
-    .login-container label { display: flex; align-items: center; justify-content: center; margin: 0; font-size: 14px; color: #2c3e50; }
-    .login-container input[type="checkbox"] { margin-right: 8px; }
-    .login-container button { width: 100%; padding: 12px; margin: 0; background-color: #3498db; color: white; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; transition: background-color 0.3s; }
-    .login-container button:hover { background-color: #2980b9; }
-    .login-container .register-btn { background-color: #2ecc71; }
-    .login-container .register-btn:hover { background-color: #27ae60; }
-    .login-note { margin-top: 10px; font-size: 14px; color: #ecf0f1; }
-    .login-note a { color: #2ecc71; text-decoration: none; font-weight: 700; }
-    .login-note a:hover { text-decoration: underline; }
-    #profile-view-container { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); text-align: center; width: 100%; max-width: 400px; z-index: 1000; }
-    #profile-view-container h2 { margin: 0 0 20px; color: #2c3e50; }
-    #profile-view-container .profile-picture-section img { max-width: 100px; border-radius: 50%; }
-    #profile-view-container .profile-details { margin: 20px 0; }
-    #profile-view-container button { background-color: #3498db; padding: 10px 20px; width: auto; margin-top: 10px; }
-    #profile-view-container button:hover { background-color: #2980b9; }
 
-    /* Form field labels */
-    .field-label {
-      display: block;
-      text-align: left;
-      margin-bottom: 5px;
-      font-weight: bold;
-      color: #2c3e50;
-    }
-  </style>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Milledgeville Alert Map</title>
+    <link rel="stylesheet" href="/css/style.css" type="text/css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="icon" href="data:,">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #3498db, #2c3e50);
+            color: #2c3e50;
+            min-height: 100vh;
+        }
+
+        #app {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        header {
+            text-align: center;
+            padding: 20px 0;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 32px;
+            color: #ecf0f1;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+        }
+
+        #auth {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .login-container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            height: fit-content;
+        }
+
+        .login-container h2 {
+            margin: 0 0 10px;
+            font-size: 28px;
+            color: #2c3e50;
+        }
+
+        .login-container input[type="email"],
+        .login-container input[type="password"] {
+            width: 100%;
+            padding: 12px;
+            margin: 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+
+        .login-container label {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            font-size: 14px;
+            color: #2c3e50;
+        }
+
+        .login-container input[type="checkbox"] {
+            margin-right: 8px;
+        }
+
+        .login-container button {
+            width: 100%;
+            padding: 12px;
+            margin: 0;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .login-container button:hover {
+            background-color: #2980b9;
+        }
+
+        .login-container .register-btn {
+            background-color: #2ecc71;
+        }
+
+        .login-container .register-btn:hover {
+            background-color: #27ae60;
+        }
+
+        .login-note {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #ecf0f1;
+        }
+
+        .login-note a {
+            color: #2ecc71;
+            text-decoration: none;
+            font-weight: 700;
+        }
+
+        .login-note a:hover {
+            text-decoration: underline;
+        }
+
+        #profile-view-container {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            text-align: center;
+            width: 100%;
+            max-width: 400px;
+            z-index: 1000;
+        }
+
+        #profile-view-container h2 {
+            margin: 0 0 20px;
+            color: #2c3e50;
+        }
+
+        #profile-view-container .profile-picture-section img {
+            max-width: 100px;
+            border-radius: 50%;
+        }
+
+        #profile-view-container .profile-details {
+            margin: 20px 0;
+        }
+
+        #profile-view-container button {
+            background-color: #3498db;
+            padding: 10px 20px;
+            width: auto;
+            margin-top: 10px;
+        }
+
+        #profile-view-container button:hover {
+            background-color: #2980b9;
+        }
+
+        /* Form field labels */
+        .field-label {
+            display: block;
+            text-align: left;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+    </style>
 </head>
+
 <body>
-  <div id="app">
-    <header>
-      <h1>Milledgeville Alert Map</h1>
-    </header>
-    <div id="auth" class="login-form">
-      <div class="login-container">
-        <h2>Login</h2>
-        <input type="email" id="email" placeholder="Email" required>
-        <input type="password" id="password" placeholder="Password" required>
-        <label><input type="checkbox" id="stay-logged-in"> Stay Logged In</label>
-        <button class="register-btn" onclick="window.location.href='register.html'">Register</button>
-        <button onclick="login()">Login</button>
-        <div class="login-note">
-          Not registered yet? Click the <a href="register.html">Register</a> button above!
+    <div id="app">
+        <header>
+            <h1>Milledgeville Alert Map</h1>
+        </header>
+        <div id="auth" class="login-form">
+            <div class="login-container">
+                <h2>Login</h2>
+                <input type="email" id="email" placeholder="Email" required>
+                <input type="password" id="password" placeholder="Password" required>
+                <label><input type="checkbox" id="stay-logged-in"> Stay Logged In</label>
+                <button class="register-btn" onclick="window.location.href='register.html'">Register</button>
+                <button onclick="login()">Login</button>
+                <div class="login-note">
+                    Not registered yet? Click the <a href="register.html">Register</a> button above!
+                </div>
+            </div>
         </div>
-      </div>
-    </div>
-    <div id="map-container" class="map-container" style="display: none;">
-      <div id="weather-alerts" class="weather-alerts">
-        <h3>Weather Alerts (Milledgeville, GA)</h3>
-        <div id="weather-content">Loading weather alerts...</div>
-        <a href="https://forecast.weather.gov/MapClick.php?lat=33.0801&lon=-83.2321" target="_blank" id="weather-link">Full Weather Report</a>
-      </div>
-      <div class="controls">
-        <input type="text" id="address-search" placeholder="Search by address">
-        <button onclick="searchAddress()">Search</button>
-        <button onclick="editProfile()">Profile</button>
-        <button onclick="fetchMessages()">Messages</button>
-        <button onclick="signOut()">Sign Out</button>
-        <button id="admin-btn" onclick="showAdminPanel()" style="display: none;">Admin Panel</button>
-      </div>
-      <div class="map-chat-container">
-        <div id="map"></div>
-        <div id="chat-container">
-          <h3>Chat</h3>
-          <div id="chat-messages"></div>
-          <div id="chat-input-container">
-            <input type="text" id="chat-input" placeholder="Type a message..." maxlength="200">
-            <button onclick="sendChatMessage()">Send</button>
-          </div>
+        <div id="map-container" class="map-container" style="display: none;">
+            <div id="weather-alerts" class="weather-alerts">
+                <h3>Weather Alerts (Milledgeville, GA)</h3>
+                <div id="weather-content">Loading weather alerts...</div>
+                <a href="https://forecast.weather.gov/MapClick.php?lat=33.0801&lon=-83.2321" target="_blank"
+                    id="weather-link">Full Weather Report</a>
+            </div>
+            <div class="controls">
+                <input type="text" id="address-search" placeholder="Search by address">
+                <button onclick="searchAddress()">Search</button>
+                <button onclick="editProfile()">Profile</button>
+                <button onclick="fetchMessages()">Messages</button>
+                <button onclick="signOut()">Sign Out</button>
+                <button id="admin-btn" onclick="showAdminPanel()" style="display: none;">Admin Panel</button>
+            </div>
+            <div class="map-chat-container">
+                <div id="map"></div>
+                <div id="chat-container">
+                    <h3>Chat</h3>
+                    <div id="chat-messages"></div>
+                    <div id="chat-input-container">
+                        <input type="text" id="chat-input" placeholder="Type a message..." maxlength="200">
+                        <button onclick="sendChatMessage()">Send</button>
+                    </div>
+                </div>
+            </div>
+            <div class="pin-controls">
+                <select id="pin-type">
+                    <option value="">Select Alert Type</option>
+                    <option value="cop">Cop</option>
+                    <option value="shooting">Shooting</option>
+                    <option value="fire">Fire</option>
+                    <option value="roadblock">Roadblock</option>
+                    <option value="wreck">Wreck/Crash</option>
+                </select>
+                <input type="text" id="description" placeholder="Alert Description" maxlength="100">
+                <input type="file" id="media-upload" accept="image/*,video/mp4,video/webm">
+                <button onclick="addPin()">Add Alert</button>
+                <span id="alert-counter">Current Alerts: 0</span>
+            </div>
+            <div id="pin-list"></div>
         </div>
-      </div>
-      <div class="pin-controls">
-        <select id="pin-type">
-          <option value="">Select Alert Type</option>
-          <option value="cop">Cop</option>
-          <option value="shooting">Shooting</option>
-          <option value="fire">Fire</option>
-          <option value="roadblock">Roadblock</option>
-          <option value="wreck">Wreck/Crash</option>
-        </select>
-        <input type="text" id="description" placeholder="Alert Description" maxlength="100">
-        <input type="file" id="media-upload" accept="image/*,video/mp4,video/webm">
-        <button onclick="addPin()">Add Alert</button>
-        <span id="alert-counter">Current Alerts: 0</span>
-      </div>
-      <div id="pin-list"></div>
-    </div>
-    <div id="profile-container" class="profile-container" style="display: none;">
-      <h2>Edit Profile</h2>
-      <div class="profile-picture-section">
-        <img id="profile-picture-preview" alt="Profile Picture" style="display: none;">
-        <input type="file" id="profile-picture" accept="image/*">
-      </div>
-      <label class="field-label" for="profile-username">Username</label>
-      <input type="text" id="profile-username" placeholder="Username">
-      
-      <label class="field-label" for="profile-birthdate">Birthdate</label>
-      <input type="date" id="profile-birthdate">
-      
-      <label class="field-label" for="profile-sex">Sex</label>
-      <select id="profile-sex">
-        <option value="">Select Sex</option>
-        <option value="Male">Male</option>
-        <option value="Female">Female</option>
-        <option value="Other">Other</option>
-      </select>
-      
-      <label class="field-label" for="profile-location">Location</label>
-      <input type="text" id="profile-location" placeholder="Location">
-      
-      <div class="profile-buttons">
-        <button onclick="updateProfile()">Save</button>
-        <button onclick="closeProfile()">Cancel</button>
-      </div>
-    </div>
-    <div id="profile-view-container" class="profile-view-container" style="display: none;">
-      <h2>User Profile</h2>
-      <div class="profile-picture-section">
-        <img id="view-profile-picture" alt="Profile Picture" style="display: none;">
-      </div>
-      <div class="profile-details">
-        <p><strong>Username:</strong> <span id="view-username"></span></p>
-        <p><strong>Location:</strong> <span id="view-location"></span></p>
-        <p><strong>Current Pins:</strong> <span id="view-pin-count"></span> <span id="view-pin-stars"></span></p>
-        <p><strong>Reputation:</strong> <span id="view-reputation"></span></p>
-        <p><strong>Badges:</strong> <span id="view-badges"></span></p>
-        <div id="reputation-controls" class="reputation-controls">
-          <button onclick="upvoteUser()" class="upvote-btn"></button>
-          <button onclick="downvoteUser()" class="downvote-btn"></button>
+        <div id="profile-container" class="profile-container" style="display: none;">
+            <h2>Edit Profile</h2>
+            <div class="profile-picture-section">
+                <img id="profile-picture-preview" alt="Profile Picture" style="display: none;">
+                <input type="file" id="profile-picture" accept="image/*">
+            </div>
+            <label class="field-label" for="profile-username">Username</label>
+            <input type="text" id="profile-username" placeholder="Username">
+
+            <label class="field-label" for="profile-birthdate">Birthdate</label>
+            <input type="date" id="profile-birthdate">
+
+            <label class="field-label" for="profile-sex">Sex</label>
+            <select id="profile-sex">
+                <option value="">Select Sex</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Other">Other</option>
+            </select>
+
+            <label class="field-label" for="profile-location">Location</label>
+            <input type="text" id="profile-location" placeholder="Location">
+
+            <div class="profile-buttons">
+                <button onclick="updateProfile()">Save</button>
+                <button onclick="closeProfile()">Cancel</button>
+            </div>
         </div>
-      </div>
-      <input type="text" id="message-input" placeholder="Send a private message..." maxlength="200">
-      <button onclick="sendPrivateMessage()">Send Message</button>
-      <button onclick="closeProfileView()">Close</button>
+        <div id="profile-view-container" class="profile-view-container" style="display: none;">
+            <h2>User Profile</h2>
+            <div class="profile-picture-section">
+                <img id="view-profile-picture" alt="Profile Picture" style="display: none;">
+            </div>
+            <div class="profile-details">
+                <p><strong>Username:</strong> <span id="view-username"></span></p>
+                <p><strong>Location:</strong> <span id="view-location"></span></p>
+                <p><strong>Current Pins:</strong> <span id="view-pin-count"></span> <span
+                        id="view-pin-stars"></span></p>
+                <p><strong>Reputation:</strong> <span id="view-reputation"></span></p>
+                <p><strong>Badges:</strong> <span id="view-badges"></span></p>
+                <div id="reputation-controls" class="reputation-controls">
+                    <button onclick="upvoteUser()" class="upvote-btn"></button>
+                    <button onclick="downvoteUser()" class="downvote-btn"></button>
+                </div>
+            </div>
+            <input type="text" id="message-input" placeholder="Send a private message..." maxlength="200">
+            <button onclick="sendPrivateMessage()">Send Message</button>
+            <button onclick="closeProfileView()">Close</button>
+        </div>
+        <div id="media-view" style="display: none;">
+            <div class="media-container">
+                <img id="media-image" style="display: none;" alt="Alert Media">
+                <video id="media-video" controls style="display: none;"></video>
+                <button onclick="closeMediaView()">Close</button>
+            </div>
+        </div>
+        <div id="messages-container" class="messages-container" style="display: none;">
+            <h3>Private Messages</h3>
+            <div id="messages-list"></div>
+            <button onclick="showMap()">Back to Map</button>
+        </div>
+        <div id="admin-panel" style="display: none;"></div>
     </div>
-    <div id="media-view" style="display: none;">
-      <div class="media-container">
-        <img id="media-image" style="display: none;" alt="Alert Media">
-        <video id="media-video" controls style="display: none;"></video>
-        <button onclick="closeMediaView()">Close</button>
-      </div>
-    </div>
-    <div id="messages-container" class="messages-container" style="display: none;">
-      <h3>Private Messages</h3>
-      <div id="messages-list"></div>
-      <button onclick="showMap()">Back to Map</button>
-    </div>
-    <div id="admin-panel" style="display: none;"></div>
-  </div>
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBBfsJsm_7LQbjuU5Y8CaphIBHBD3JCwSQ&libraries=places,marker&callback=initMap" defer></script>
-  <script src="/js/script.js"></script>
+    <script
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBBfsJsm_7LQbjuU5Y8CaphIBHBD3JCwSQ&libraries=places,marker&callback=initMap"
+        defer></script>
+    <script src="/js/script.js"></script>
 </body>
+
 </html>
