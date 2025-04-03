@@ -1,7 +1,9 @@
 let token;
 let currentLatLng;
 let userId;
+let role;
 let isAdmin = false;
+let isModerator = false;
 let geocoder;
 let markers = {};
 let userLocationMarker;
@@ -16,6 +18,7 @@ let currentProfileUserId;
 let ws;
 let username;
 let map;
+let heatmap;
 
 function getDistance(lat1, lon1, lat2, lon2) {
   const R = 6371000;
@@ -37,13 +40,20 @@ function initMap() {
     ]
   });
   geocoder = new google.maps.Geocoder();
+  heatmap = new google.maps.visualization.HeatmapLayer({
+    data: [],
+    map: null,
+    radius: 20
+  });
 
   token = localStorage.getItem('token');
   if (token) {
     try {
       const payload = JSON.parse(atob(token.split('.')[1]));
       userId = payload.id;
-      isAdmin = payload.email === 'imhoggbox@gmail.com';
+      role = payload.role;
+      isAdmin = role === 'admin';
+      isModerator = role === 'moderator';
       fetchProfileForUsername();
       showMap();
       startMap();
@@ -51,8 +61,11 @@ function initMap() {
       setupWebSocket();
       fetchInitialChatMessages();
       checkNewMessages();
-      setInterval(fetchPins, 5000); // Refresh pins every 5 seconds
+      setInterval(fetchPins, 5000);
+      setupPushNotifications();
+      loadOfflineData();
       document.getElementById('admin-btn').style.display = isAdmin ? 'inline-block' : 'none';
+      document.getElementById('heatmap-btn').style.display = 'inline-block';
     } catch (err) {
       console.error('Invalid token:', err);
       signOut();
@@ -99,6 +112,7 @@ function showLogin() {
   document.getElementById('media-view').style.display = 'none';
   document.getElementById('messages-container').style.display = 'none';
   document.getElementById('admin-panel').style.display = 'none';
+  document.getElementById('stats-container').style.display = 'none';
 }
 
 function showMap() {
@@ -109,6 +123,7 @@ function showMap() {
   document.getElementById('media-view').style.display = 'none';
   document.getElementById('messages-container').style.display = 'none';
   document.getElementById('admin-panel').style.display = 'none';
+  document.getElementById('stats-container').style.display = 'none';
   document.getElementById('admin-btn').style.display = isAdmin ? 'inline-block' : 'none';
 }
 
@@ -144,21 +159,27 @@ function setupWebSocket() {
       });
     } else if (data.type === 'chat') {
       addChatMessage(data);
+      saveOfflineChat(data);
     } else if (data.type === 'privateMessage') {
       checkNewMessages();
     } else if (data.type === 'newPin') {
       fetchPins();
+      saveOfflinePin(data.pin);
     } else if (data.type === 'newComment') {
       const pinId = data.pinId;
       if (document.getElementById(`comment-modal-${pinId}`)) {
         showComments(pinId);
       }
       fetchPins();
+    } else if (data.type === 'muted') {
+      alert(`You’ve been muted for ${data.duration} minutes.`);
+      document.getElementById('chat-input').disabled = true;
+      setTimeout(() => document.getElementById('chat-input').disabled = false, data.duration * 60 * 1000);
     }
   };
   ws.onclose = () => {
     console.log('WebSocket disconnected');
-    alert('WebSocket connection lost. Please refresh the page.');
+    alert('WebSocket connection lost. Using offline mode.');
   };
   ws.onerror = (err) => {
     console.error('WebSocket error:', err);
@@ -181,9 +202,13 @@ async function fetchInitialChatMessages() {
         message: msg.message,
         timestamp: msg.timestamp
       }));
+      localStorage.setItem('offlineChat', JSON.stringify(messages));
+    } else {
+      loadOfflineChat();
     }
   } catch (err) {
     console.error('Error fetching initial chat messages:', err);
+    loadOfflineChat();
   }
 }
 
@@ -195,6 +220,7 @@ function addChatMessage(data) {
     <span class="username">${data.username || data.userId || 'Unknown'}</span>:
     ${data.message}
     <span class="timestamp">${new Date(data.timestamp).toLocaleTimeString()}</span>
+    ${isAdmin || isModerator ? `<button class="mute-btn standard-btn" onclick="muteUser('${data.userId}')">Mute</button>` : ''}
   `;
   chatMessages.appendChild(messageDiv);
   chatMessages.scrollTop = chatMessages.scrollHeight;
@@ -208,7 +234,16 @@ function sendChatMessage() {
     ws.send(JSON.stringify({ type: 'chat', userId, username: username || 'Anonymous', message }));
     messageInput.value = '';
   } else {
-    alert('Chat connection not available.');
+    alert('Chat connection not available. Message saved offline.');
+    saveOfflineChat({ userId, username: username || 'Anonymous', message, timestamp: new Date() });
+    addChatMessage({ userId, username: username || 'Anonymous', message, timestamp: new Date() });
+  }
+}
+
+function muteUser(targetId) {
+  const duration = prompt('Enter mute duration in minutes:', '10');
+  if (duration && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: 'muteUser', targetId, duration: parseInt(duration) }));
   }
 }
 
@@ -365,7 +400,9 @@ async function login() {
       localStorage.setItem('token', token);
       const payload = JSON.parse(atob(token.split('.')[1]));
       userId = payload.id;
-      isAdmin = payload.email === 'imhoggbox@gmail.com';
+      role = payload.role;
+      isAdmin = role === 'admin';
+      isModerator = role === 'moderator';
       fetchProfileForUsername();
       showMap();
       startMap();
@@ -373,6 +410,7 @@ async function login() {
       setupWebSocket();
       fetchInitialChatMessages();
       checkNewMessages();
+      setupPushNotifications();
     } else {
       alert(`Login failed: ${data.message || 'No token received'}`);
     }
@@ -386,7 +424,9 @@ function signOut() {
   localStorage.removeItem('token');
   token = null;
   userId = null;
+  role = null;
   isAdmin = false;
+  isModerator = false;
   username = null;
   if (userLocationMarker) userLocationMarker.setMap(null);
   userLocationMarker = null;
@@ -423,11 +463,13 @@ async function addPin() {
   const pinType = document.getElementById('pin-type').value;
   const descriptionInput = document.getElementById('description').value.trim();
   const description = descriptionInput || pinType;
+  const expiresInHours = document.getElementById('expires-in-hours').value;
   const mediaFile = document.getElementById('media-upload').files[0];
   const formData = new FormData();
   formData.append('latitude', currentLatLng.lat);
   formData.append('longitude', currentLatLng.lng);
   formData.append('description', description);
+  if (expiresInHours) formData.append('expiresInHours', expiresInHours);
   if (mediaFile) formData.append('media', mediaFile);
 
   try {
@@ -443,6 +485,7 @@ async function addPin() {
       fetchPins();
       document.getElementById('pin-type').value = '';
       document.getElementById('description').value = '';
+      document.getElementById('expires-in-hours').value = '';
       document.getElementById('media-upload').value = '';
       currentLatLng = null;
     } else {
@@ -451,6 +494,7 @@ async function addPin() {
   } catch (err) {
     console.error('Add pin error:', err);
     alert(`Failed to add alert: ${err.message}`);
+    saveOfflinePin({ latitude: currentLatLng.lat, longitude: currentLatLng.lng, description });
   }
 }
 
@@ -761,6 +805,7 @@ async function fetchPins() {
     const pins = await response.json();
     const filteredPins = applyFilter(pins);
     document.getElementById('alert-counter').textContent = `Current Alerts: ${pins.length}`;
+    localStorage.setItem('offlinePins', JSON.stringify(pins));
 
     Object.keys(markers).forEach(pinId => {
       if (!pins.some(pin => pin._id === pinId)) {
@@ -790,12 +835,21 @@ async function fetchPins() {
     `;
     pinList.querySelector('table').appendChild(tableBody);
 
+    const pinIcons = {
+      'cop': { url: 'https://img.icons8.com/?size=100&id=fHTZqkybfaA7&format=png&color=000000', scaledSize: new google.maps.Size(32, 32) },
+      'shooting': 'http://maps.google.com/mapfiles/ms/icons/red-dot.png',
+      'fire': 'http://maps.google.com/mapfiles/ms/icons/red-dot.png',
+      'roadblock': 'http://maps.google.com/mapfiles/ms/icons/red-dot.png',
+      'wreck': 'http://maps.google.com/mapfiles/ms/icons/red-dot.png',
+      'flood': 'http://maps.google.com/mapfiles/ms/icons/red-dot.png',
+      'accident': 'http://maps.google.com/mapfiles/ms/icons/red-dot.png'
+    };
+
     filteredPins.forEach(pin => {
       if (!markers[pin._id]) {
         const desc = pin.description.toLowerCase();
-        const icon = desc.includes('cop') || desc.includes('police') ? 
-          { url: 'https://img.icons8.com/?size=100&id=fHTZqkybfaA7&format=png&color=000000', scaledSize: new google.maps.Size(32, 32) } :
-          'http://maps.google.com/mapfiles/ms/icons/red-dot.png';
+        const iconKey = Object.keys(pinIcons).find(key => desc.includes(key)) || 'default';
+        const icon = pinIcons[iconKey] || 'http://maps.google.com/mapfiles/ms/icons/red-dot.png';
         markers[pin._id] = new google.maps.Marker({
           position: { lat: pin.latitude, lng: pin.longitude },
           map: map,
@@ -811,7 +865,7 @@ async function fetchPins() {
         <td>${pin.longitude.toFixed(4)}</td>
         <td>
           <span onclick="viewProfile('${pin.userId._id}')" style="cursor: pointer; color: #3498db;">
-            ${pin.username || pin.userEmail}
+            ${pin.username || pin.userEmail} ${pin.userId.role === 'admin' ? '👑' : pin.userId.role === 'moderator' ? '🛡️' : ''}
             <img src="https://img.icons8.com/small/16/visible.png" class="profile-view-icon">
           </span>
         </td>
@@ -851,9 +905,23 @@ async function fetchPins() {
       <span>Page ${currentPage} of ${totalPages || 1}</span>
       <button class="standard-btn next-btn" onclick="changePage(1)" ${currentPage === totalPages || totalPages === 0 ? 'disabled' : ''}>Next</button>
     `;
+
+    const heatData = pins.map(pin => new google.maps.LatLng(pin.latitude, pin.longitude));
+    heatmap.setData(heatData);
   } catch (err) {
     console.error('Fetch pins error:', err);
     alert('Error fetching pins: ' + err.message);
+    loadOfflinePins();
+  }
+}
+
+function toggleHeatmap() {
+  if (heatmap.getMap()) {
+    heatmap.setMap(null);
+    document.getElementById('heatmap-btn').textContent = 'Show Heatmap';
+  } else {
+    heatmap.setMap(map);
+    document.getElementById('heatmap-btn').textContent = 'Hide Heatmap';
   }
 }
 
@@ -889,6 +957,7 @@ function editProfile() {
   document.getElementById('media-view').style.display = 'none';
   document.getElementById('messages-container').style.display = 'none';
   document.getElementById('admin-panel').style.display = 'none';
+  document.getElementById('stats-container').style.display = 'none';
   fetchProfile();
 }
 
@@ -958,9 +1027,9 @@ async function viewProfile(userIdToView) {
       document.getElementById('view-profile-picture').src = profile.profilePicture ? 
         `https://pinmap-website.onrender.com${profile.profilePicture}` : 'https://via.placeholder.com/150';
       document.getElementById('view-profile-picture').style.display = 'block';
-      document.getElementById('view-username').textContent = profile.username || profile.email;
+      document.getElementById('view-username').textContent = `${profile.username || profile.email} ${profile.role === 'admin' ? '👑' : profile.role === 'moderator' ? '🛡️' : ''}`;
       document.getElementById('view-location').textContent = profile.location || 'Not set';
-      document.getElementById('view-pin-count').textContent = profile.totalPins || 0; // Changed to totalPins
+      document.getElementById('view-pin-count').textContent = profile.totalPins || 0;
       document.getElementById('view-pin-stars').innerHTML = '★'.repeat(Math.floor(profile.reputation / 10));
       document.getElementById('view-reputation').textContent = profile.reputation || 0;
       document.getElementById('view-badges').textContent = profile.badges ? profile.badges.join(', ') : 'None';
@@ -1075,7 +1144,7 @@ async function checkNewMessages() {
     });
     if (response.ok) {
       const unreadCount = await response.json();
-      const messagesBtn = document.querySelector('#map-container .controls button:nth-child(3)'); // Adjusted for button order
+      const messagesBtn = document.querySelector('#map-container .controls button:nth-child(3)');
       messagesBtn.textContent = `Messages${unreadCount > 0 ? ` (${unreadCount})` : ''}`;
     }
   } catch (err) {
@@ -1085,4 +1154,156 @@ async function checkNewMessages() {
 
 function showAdminPanel() {
   window.location.href = 'admin.html';
+}
+
+function showStats() {
+  document.getElementById('map-container').style.display = 'none';
+  document.getElementById('stats-container').style.display = 'block';
+  fetchStats();
+}
+
+async function fetchStats() {
+  try {
+    const response = await fetch('https://pinmap-website.onrender.com/auth/stats', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (response.ok) {
+      const stats = await response.json();
+      document.getElementById('stats-picture').src = document.getElementById('profile-picture-preview').src;
+      document.getElementById('stats-username').textContent = username;
+      document.getElementById('stats-pins').textContent = stats.totalPins;
+      document.getElementById('stats-reputation').textContent = stats.reputation;
+      document.getElementById('stats-upvotes').textContent = stats.upvotes;
+      document.getElementById('stats-downvotes').textContent = stats.downvotes;
+      document.getElementById('stats-verifications').textContent = stats.verifications;
+      document.getElementById('stats-join-date').textContent = new Date(stats.joinDate).toLocaleDateString();
+      document.getElementById('stats-badges').textContent = stats.badges.join(', ');
+
+      const ctx = document.getElementById('stats-canvas').getContext('2d');
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: ['Pins', 'Reputation', 'Upvotes', 'Downvotes', 'Verifications'],
+          datasets: [{
+            label: 'Your Stats',
+            data: [stats.totalPins, stats.reputation, stats.upvotes, stats.downvotes, stats.verifications],
+            backgroundColor: '#3498db'
+          }]
+        },
+        options: {
+          scales: { y: { beginAtZero: true } }
+        }
+      });
+    } else {
+      throw new Error(await response.text());
+    }
+  } catch (err) {
+    console.error('Fetch stats error:', err);
+    alert('Error fetching stats: ' + err.message);
+  }
+}
+
+function closeStats() {
+  showMap();
+}
+
+function setupPushNotifications() {
+  if ('serviceWorker' in navigator && 'PushManager' in window) {
+    navigator.serviceWorker.register('/sw.js').then(registration => {
+      registration.pushManager.getSubscription().then(subscription => {
+        if (!subscription) {
+          fetch('https://pinmap-website.onrender.com/vapidPublicKey')
+            .then(res => res.text())
+            .then(publicKey => {
+              registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array(publicKey)
+              }).then(subscription => {
+                fetch('https://pinmap-website.onrender.com/subscribe', {
+                  method: 'POST',
+                  headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                  body: JSON.stringify(subscription)
+                });
+                if (ws.readyState === WebSocket.OPEN) {
+                  ws.send(JSON.stringify({ type: 'subscribe', subscription }));
+                }
+              });
+            });
+        }
+      });
+    }).catch(err => console.error('Service Worker registration failed:', err));
+  } else {
+    console.warn('Push notifications not supported in this browser.');
+  }
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
+function saveOfflinePin(pin) {
+  let offlinePins = JSON.parse(localStorage.getItem('offlinePins') || '[]');
+  offlinePins.push(pin);
+  localStorage.setItem('offlinePins', JSON.stringify(offlinePins));
+}
+
+function saveOfflineChat(chat) {
+  let offlineChat = JSON.parse(localStorage.getItem('offlineChat') || '[]');
+  offlineChat.push(chat);
+  localStorage.setItem('offlineChat', JSON.stringify(offlineChat.slice(-50)));
+}
+
+function loadOfflinePins() {
+  const offlinePins = JSON.parse(localStorage.getItem('offlinePins') || '[]');
+  if (offlinePins.length > 0) {
+    document.getElementById('alert-counter').textContent = `Current Alerts (Offline): ${offlinePins.length}`;
+    const tableBody = document.createElement('tbody');
+    const pinList = document.getElementById('pin-list');
+    pinList.innerHTML = `
+      <table class="pin-table">
+        <thead>
+          <tr>
+            <th>Description</th>
+            <th>Latitude</th>
+            <th>Longitude</th>
+            <th>Posted By</th>
+            <th>Timestamp (ET)</th>
+            <th>Expires</th>
+            <th>Media</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+      </table>
+    `;
+    pinList.querySelector('table').appendChild(tableBody);
+
+    offlinePins.forEach(pin => {
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td>${pin.description}</td>
+        <td>${pin.latitude.toFixed(4)}</td>
+        <td>${pin.longitude.toFixed(4)}</td>
+        <td>${username || 'You'}</td>
+        <td>${new Date().toLocaleString()}</td>
+        <td>${new Date(Date.now() + 2 * 60 * 60 * 1000).toLocaleString()}</td>
+        <td>N/A</td>
+        <td><button class="standard-btn goto-btn" onclick="goToPinLocation(${pin.latitude}, ${pin.longitude})">Go To</button></td>
+      `;
+      tableBody.appendChild(row);
+    });
+  }
+}
+
+function loadOfflineChat() {
+  const offlineChat = JSON.parse(localStorage.getItem('offlineChat') || '[]');
+  const chatMessages = document.getElementById('chat-messages');
+  chatMessages.innerHTML = '';
+  offlineChat.forEach(msg => addChatMessage(msg));
 }
