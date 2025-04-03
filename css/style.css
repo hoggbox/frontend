@@ -7,7 +7,7 @@
 body {
   font-family: 'Roboto', Arial, sans-serif;
   background: url('https://www.transparenttextures.com/patterns/45-degree-fabric.png') repeat, 
-              linear-gradient(135deg, #e6f0fa 0%, #d9e6f2 100%);
+              linear-gradient(135deg, #3498db 0%, #2980b9 100%);
   color: #2c3e50;
   line-height: 1.6;
   padding: 20px;
@@ -27,7 +27,7 @@ header {
 header h1 {
   font-size: 36px;
   font-weight: 700;
-  color: #2c3e50;
+  color: #ecf0f1;
   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
 }
 
@@ -39,64 +39,18 @@ header h1 {
   border-radius: 10px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
   text-align: center;
-  background: linear-gradient(135deg, #3498db, #2c3e50); /* Gradient for login */
-  color: #ecf0f1; /* Light text */
 }
 
 .login-form h2 {
   font-size: 24px;
   margin-bottom: 20px;
-  color: #ecf0f1;
-}
-
-.login-container input[type="email"],
-.login-container input[type="password"],
-.login-container input[type="checkbox"] + label {
-  width: 100%;
-  max-width: 300px;
-  padding: 12px;
-  margin: 10px 0;
-  border: 1px solid #ddd;
-  border-radius: 5px;
-  font-size: 16px;
-  background: #f9f9f9;
-  transition: border-color 0.3s ease;
-  display: block;
   color: #2c3e50;
 }
 
-.login-container input[type="checkbox"] + label {
-  padding: 0;
-  text-align: left;
-  font-size: 14px;
-  color: #ecf0f1;
-}
-
-.login-container input[type="checkbox"] {
-  width: auto;
-  margin-right: 10px;
-}
-
-.login-container button {
-  width: 100%;
-  max-width: 300px;
-  margin: 10px 0;
-  padding: 12px;
-}
-
-.login-note {
-  margin-top: 15px;
-  font-size: 14px;
-  color: #ecf0f1;
-}
-
-.login-note a {
-  color: #2ecc71;
-  text-decoration: none;
-}
-
-.login-note a:hover {
-  text-decoration: underline;
+.login-form button {
+  display: inline-block;
+  width: 45%;
+  margin: 5px 2.5%;
 }
 
 .map-container {
@@ -238,8 +192,7 @@ header h1 {
 
 .pin-controls select,
 .pin-controls input[type="text"],
-.pin-controls input[type="file"],
-.pin-controls input[type="number"] {
+.pin-controls input[type="file"] {
   padding: 10px;
   border: 1px solid #ddd;
   border-radius: 5px;
@@ -252,8 +205,7 @@ header h1 {
 
 .pin-controls select:focus,
 .pin-controls input[type="text"]:focus,
-.pin-controls input[type="file"]:focus,
-.pin-controls input[type="number"]:focus {
+.pin-controls input[type="file"]:focus {
   border-color: #3498db;
   outline: none;
 }
@@ -444,9 +396,9 @@ header h1 {
 .pin-table th:nth-child(1), .pin-table td:nth-child(1) { width: 15%; }
 .pin-table th:nth-child(2), .pin-table td:nth-child(2) { width: 10%; }
 .pin-table th:nth-child(3), .pin-table td:nth-child(3) { width: 10%; }
-.pin-table th:nth-child(4), .pin-table td:nth-child(4) { width: 15%; }
+pin-table th:nth-child(4), .pin-table td:nth-child(4) { width: 15%; }
 .pin-table th:nth-child(5), .pin-table td:nth-child(5) { width: 15%; }
-pin-table th:nth-child(6), .pin-table td:nth-child(6) { width: 15%; }
+.pin-table th:nth-child(6), .pin-table td:nth-child(6) { width: 15%; }
 .pin-table th:nth-child(7), .pin-table td:nth-child(7) { width: 5%; }
 .pin-table th:nth-child(8), .pin-table td:nth-child(8) { width: 35%; }
 
@@ -495,20 +447,17 @@ pin-table th:nth-child(6), .pin-table td:nth-child(6) { width: 15%; }
   color: #2c3e50;
 }
 
-#analytics-chart,
-#stats-chart {
+#analytics-chart {
   margin-top: 30px;
 }
 
-#analytics-chart h3,
-#stats-chart h3 {
+#analytics-chart h3 {
   text-align: center;
   margin-bottom: 20px;
   color: #2c3e50;
 }
 
-#registration-chart,
-#stats-canvas {
+#registration-chart {
   max-height: 400px;
 }
 
@@ -557,8 +506,7 @@ input[type="text"],
 input[type="email"],
 input[type="password"],
 input[type="date"],
-input[type="file"],
-input[type="number"] {
+input[type="file"] {
   width: 100%;
   max-width: 300px;
   padding: 12px;
@@ -574,8 +522,7 @@ input[type="text"]:focus,
 input[type="email"]:focus,
 input[type="password"]:focus,
 input[type="date"]:focus,
-input[type="file"]:focus,
-input[type="number"]:focus {
+input[type="file"]:focus {
   border-color: #3498db;
   outline: none;
 }
@@ -675,12 +622,14 @@ button:active {
   background: #e08e0b;
 }
 
-.controls button:nth-child(4) {
+.controls button:nth-child(4),
+.remove-btn {
   background: #e74c3c;
   color: #ffffff;
 }
 
-.controls button:nth-child(4):hover {
+.controls button:nth-child(4):hover,
+.remove-btn:hover {
   background: #c0392b;
 }
 
@@ -755,12 +704,9 @@ button:active {
 .unban-btn:hover { background-color: #219653; }
 .close-btn { background-color: #95a5a6; }
 .close-btn:hover { background-color: #7f8c8d; }
-.mute-btn { background-color: #e67e22; }
-.mute-btn:hover { background-color: #d35400; }
 
 .profile-container,
-.profile-view-container,
-.stats-container {
+.profile-view-container {
   max-width: 500px;
   margin: 30px auto;
   background: #ffffff;
@@ -771,8 +717,7 @@ button:active {
 }
 
 .profile-container h2,
-.profile-view-container h2,
-.stats-container h2 {
+.profile-view-container h2 {
   font-size: 24px;
   margin-bottom: 20px;
   color: #2c3e50;
@@ -791,8 +736,7 @@ button:active {
   border: 2px solid #ddd;
 }
 
-.profile-view-container .profile-picture-section img,
-.stats-container .profile-picture-section img {
+.profile-view-container .profile-picture-section img {
   max-width: 100px;
   max-height: 100px;
 }
@@ -814,14 +758,12 @@ button:active {
   outline: none;
 }
 
-.profile-details p,
-.stats-details p {
+.profile-details p {
   margin: 15px 0;
   font-size: 16px;
 }
 
-.profile-details strong,
-.stats-details strong {
+.profile-details strong {
   color: #2c3e50;
 }
 
@@ -964,15 +906,13 @@ button:active {
   transform: scale(1.1);
 }
 
-.profile-view-container > button,
-.stats-container > button {
+.profile-view-container > button {
   margin-top: 30px;
   background: #e74c3c;
   color: #ffffff;
 }
 
-.profile-view-container > button:hover,
-.stats-container > button:hover {
+.profile-view-container > button:hover {
   background: #c0392b;
 }
 
