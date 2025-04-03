@@ -28,6 +28,40 @@ function getDistance(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
+async function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
+async function subscribeToPush() {
+  if ('serviceWorker' in navigator && 'PushManager' in window) {
+    try {
+      const registration = await navigator.serviceWorker.register('/sw.js');
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: await urlBase64ToUint8Array('YOUR_PUBLIC_VAPID_KEY') // Replace with your VAPID public key
+      });
+      await fetch('https://pinmap-website.onrender.com/subscribe', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(subscription),
+      });
+      console.log('Push subscription successful');
+    } catch (err) {
+      console.error('Push subscription error:', err);
+    }
+  }
+}
+
 function initMap() {  
   map = new google.maps.Map(document.getElementById('map'), {
     zoom: 12,
@@ -50,6 +84,7 @@ function initMap() {
       fetchWeatherAlerts();
       setupWebSocket();
       checkNewMessages();
+      subscribeToPush(); // Add push subscription
       document.getElementById('admin-btn').style.display = isAdmin ? 'inline-block' : 'none';
     } catch (err) {
       console.error('Invalid token:', err);
