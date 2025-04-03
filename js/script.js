@@ -3,7 +3,7 @@ let currentLatLng;
 let userId;
 let isAdmin = false;
 let geocoder;
-let markers = {}; // Now stores { marker, polyline, path } per user
+let markers = {}; // { userId: { marker, polyline, path } }
 let userLocationMarker;
 let userPath = [];
 let userPolyline = null;
@@ -80,6 +80,7 @@ function initMap() {
       const payload = JSON.parse(atob(token.split('.')[1]));
       userId = payload.id;
       isAdmin = payload.email === 'imhoggbox@gmail.com';
+      console.log('Logged in as:', payload.email, 'Admin:', isAdmin); // Debug login
       fetchProfileForUsername();
       showMap();
       startMap();
@@ -161,9 +162,11 @@ function setupWebSocket() {
   };
   ws.onmessage = (event) => {
     const data = JSON.parse(event.data);
+    console.log('WebSocket message:', data); // Debug all messages
     if (data.type === 'location' && data.userId === userId && !isAdmin) {
       updateUserLocation(data.latitude, data.longitude);
     } else if (data.type === 'allLocations' && isAdmin) {
+      console.log('Admin received allLocations:', data.locations); // Confirm admin data
       data.locations.forEach(({ userId: uid, email, latitude, longitude }) => {
         const pos = { lat: latitude, lng: longitude };
         if (!markers[uid]) {
@@ -292,6 +295,7 @@ function startLocationTracking() {
   if (navigator.geolocation) {
     watchId = navigator.geolocation.watchPosition(
       (position) => {
+        console.log('New position:', position.coords.latitude, position.coords.longitude); // Debug position updates
         const userLocation = { lat: position.coords.latitude, lng: position.coords.longitude };
         if (!isAdmin) updateUserLocation(userLocation.lat, userLocation.lng);
         if (ws.readyState === WebSocket.OPEN) {
@@ -330,7 +334,7 @@ function startLocationTracking() {
 
 function updateUserLocation(lat, lng) {
   const newPos = { lat, lng };
-  userPath.push(newPos); // Add to path
+  userPath.push(newPos);
 
   if (!userLocationMarker) {
     userLocationMarker = new google.maps.Marker({
@@ -371,9 +375,9 @@ function updateUserLocation(lat, lng) {
       }
     }
     animate();
-    userPolyline.setPath(userPath); // Update trail
+    userPolyline.setPath(userPath);
   }
-  if (!isAdmin) map.panTo(newPos); // Smooth pan
+  if (!isAdmin) map.panTo(newPos);
 }
 
 async function searchAddress() {
@@ -854,7 +858,7 @@ async function fetchPins() {
     document.getElementById('alert-counter').textContent = `Current Alerts: ${pins.length}`;
 
     Object.keys(markers).forEach(pinId => {
-      if (!pins.some(pin => pin._id === pinId) && !markers[pinId].path) { // Only remove pin markers, not user markers
+      if (!pins.some(pin => pin._id === pinId) && !markers[pinId].path) {
         markers[pinId].setMap(null);
         delete markers[pinId];
       }
@@ -1187,7 +1191,6 @@ function showAdminPanel() {
   window.location.href = 'admin.html';
 }
 
-// Add event listener for login button
 document.addEventListener('DOMContentLoaded', () => {
   const loginBtn = document.getElementById('login-btn');
   if (loginBtn) {
