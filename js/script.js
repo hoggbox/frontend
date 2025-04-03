@@ -1069,8 +1069,10 @@ async function checkNewMessages() {
     if (response.ok) {
       const messages = await response.json();
       const unreadCount = messages.filter(msg => !msg.read).length;
-      const messagesBtn = document.querySelector('#map-container .controls button:nth-child(3)');
-      messagesBtn.textContent = `Messages${unreadCount > 0 ? ` (${unreadCount})` : ''}`;
+      const messagesBtn = document.getElementById('messages-btn');
+      if (messagesBtn) {
+        messagesBtn.textContent = `Messages${unreadCount > 0 ? ` (${unreadCount})` : ''}`;
+      }
     }
   } catch (err) {
     console.error('Check messages error:', err);
