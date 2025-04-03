@@ -3,8 +3,10 @@ let currentLatLng;
 let userId;
 let isAdmin = false;
 let geocoder;
-let markers = {};
+let markers = {}; // Now stores { marker, polyline, path } per user
 let userLocationMarker;
+let userPath = [];
+let userPolyline = null;
 let watchId;
 let sortDirection = {};
 let lastSortedColumn = null;
@@ -164,15 +166,43 @@ function setupWebSocket() {
     } else if (data.type === 'allLocations' && isAdmin) {
       data.locations.forEach(({ userId: uid, email, latitude, longitude }) => {
         const pos = { lat: latitude, lng: longitude };
-        if (markers[uid]) {
-          markers[uid].setPosition(pos);
+        if (!markers[uid]) {
+          markers[uid] = {
+            marker: new google.maps.Marker({
+              position: pos,
+              map: map,
+              title: email,
+              icon: uid === userId ? 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png' : 'http://maps.google.com/mapfiles/ms/icons/red-dot.png'
+            }),
+            path: [pos],
+            polyline: new google.maps.Polyline({
+              path: [pos],
+              geodesic: true,
+              strokeColor: uid === userId ? '#0000FF' : '#FF0000',
+              strokeOpacity: 0.8,
+              strokeWeight: 2,
+              map: map
+            })
+          };
         } else {
-          markers[uid] = new google.maps.Marker({
-            position: pos,
-            map: map,
-            title: email,
-            icon: uid === userId ? 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png' : 'http://maps.google.com/mapfiles/ms/icons/red-dot.png'
-          });
+          markers[uid].path.push(pos);
+          const oldPos = markers[uid].marker.getPosition();
+          const steps = 20;
+          const latStep = (pos.lat - oldPos.lat()) / steps;
+          const lngStep = (pos.lng - oldPos.lng()) / steps;
+          let step = 0;
+
+          function animate() {
+            if (step <= steps) {
+              const nextLat = oldPos.lat() + latStep * step;
+              const nextLng = oldPos.lng() + lngStep * step;
+              markers[uid].marker.setPosition({ lat: nextLat, lng: nextLng });
+              step++;
+              requestAnimationFrame(animate);
+            }
+          }
+          animate();
+          markers[uid].polyline.setPath(markers[uid].path);
         }
       });
     } else if (data.type === 'chat') {
@@ -285,19 +315,26 @@ function startLocationTracking() {
         if (error.code === error.PERMISSION_DENIED && userLocationMarker) {
           userLocationMarker.setMap(null);
           userLocationMarker = null;
+          if (userPolyline) {
+            userPolyline.setMap(null);
+            userPolyline = null;
+          }
+          userPath = [];
           map.setCenter({ lat: 33.0801, lng: -83.2321 });
         }
       },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 1000 }
+      { enableHighAccuracy: true, timeout: 1000, maximumAge: 0 } // High-frequency updates
     );
   }
 }
 
 function updateUserLocation(lat, lng) {
-  const userLocation = { lat, lng };
+  const newPos = { lat, lng };
+  userPath.push(newPos); // Add to path
+
   if (!userLocationMarker) {
     userLocationMarker = new google.maps.Marker({
-      position: userLocation,
+      position: newPos,
       map: map,
       title: 'Your Location',
       icon: {
@@ -309,10 +346,34 @@ function updateUserLocation(lat, lng) {
         strokeColor: '#FFFFFF'
       }
     });
+    userPolyline = new google.maps.Polyline({
+      path: userPath,
+      geodesic: true,
+      strokeColor: '#0000FF',
+      strokeOpacity: 0.8,
+      strokeWeight: 2,
+      map: map
+    });
   } else {
-    userLocationMarker.setPosition(userLocation);
+    const oldPos = userLocationMarker.getPosition();
+    const steps = 20;
+    const latStep = (newPos.lat - oldPos.lat()) / steps;
+    const lngStep = (newPos.lng - oldPos.lng()) / steps;
+    let step = 0;
+
+    function animate() {
+      if (step <= steps) {
+        const nextLat = oldPos.lat() + latStep * step;
+        const nextLng = oldPos.lng() + lngStep * step;
+        userLocationMarker.setPosition({ lat: nextLat, lng: nextLng });
+        step++;
+        requestAnimationFrame(animate);
+      }
+    }
+    animate();
+    userPolyline.setPath(userPath); // Update trail
   }
-  if (!isAdmin) map.setCenter(userLocation);
+  if (!isAdmin) map.panTo(newPos); // Smooth pan
 }
 
 async function searchAddress() {
@@ -401,10 +462,18 @@ function signOut() {
   username = null;
   if (userLocationMarker) userLocationMarker.setMap(null);
   userLocationMarker = null;
+  if (userPolyline) {
+    userPolyline.setMap(null);
+    userPolyline = null;
+  }
+  userPath = [];
   if (watchId !== undefined) navigator.geolocation.clearWatch(watchId);
   watchId = undefined;
   if (ws) ws.close();
-  Object.values(markers).forEach(marker => marker.setMap(null));
+  Object.values(markers).forEach(user => {
+    user.marker.setMap(null);
+    user.polyline.setMap(null);
+  });
   markers = {};
   showLogin();
   document.getElementById('pin-list').innerHTML = '';
@@ -785,7 +854,7 @@ async function fetchPins() {
     document.getElementById('alert-counter').textContent = `Current Alerts: ${pins.length}`;
 
     Object.keys(markers).forEach(pinId => {
-      if (!pins.some(pin => pin._id === pinId)) {
+      if (!pins.some(pin => pin._id === pinId) && !markers[pinId].path) { // Only remove pin markers, not user markers
         markers[pinId].setMap(null);
         delete markers[pinId];
       }
