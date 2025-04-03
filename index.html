@@ -36,7 +36,7 @@
                 <input type="text" id="address-search" placeholder="Search by address">
                 <button onclick="searchAddress()">Search</button>
                 <button onclick="editProfile()">Profile</button>
-                <button onclick="fetchMessages()">Messages</button>
+                <button id="messages-btn" onclick="fetchMessages()">Messages</button>
                 <button onclick="signOut()">Sign Out</button>
                 <button id="admin-btn" onclick="showAdminPanel()" style="display: none;">Admin Panel</button>
             </div>
@@ -100,7 +100,7 @@
             <div class="profile-details">
                 <p><strong>Username:</strong> <span id="view-username"></span></p>
                 <p><strong>Location:</strong> <span id="view-location"></span></p>
-                <p><strong>Current Pins:</strong> <span id="view-pin-count"></span> <span id="view-pin-stars"></span></p>
+                <p><strong>Total Pins:</strong> <span id="view-pin-count"></span> <span id="view-pin-stars"></span></p>
                 <p><strong>Reputation:</strong> <span id="view-reputation"></span></p>
                 <p><strong>Badges:</strong> <span id="view-badges"></span></p>
                 <div id="reputation-controls" class="reputation-controls">
