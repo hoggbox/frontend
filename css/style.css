@@ -658,7 +658,7 @@ button:active {
     margin-bottom: 20px;
     padding: 15px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-    align-items: center; /* Vertically align items */
+    align-items: center;
   }
 
   .pin-controls {
@@ -666,17 +666,20 @@ button:active {
     gap: 10px;
     margin: 20px 0;
     padding: 15px;
-    flex-wrap: wrap;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    align-items: center; /* Vertically align items */
   }
 
   .pin-controls select,
   .pin-controls input[type="text"],
   .pin-controls input[type="file"] {
-    padding: 10px;
-    font-size: 16px;
+    padding: 8px; /* Match button padding */
+    font-size: 14px; /* Smaller than 16px */
     flex: 1;
     min-width: 150px;
+    height: 36px; /* Match button height */
+    margin: 0; /* Remove vertical margin */
+    line-height: 1; /* Consistent line height */
   }
 
   .pin-controls button {
@@ -688,9 +691,12 @@ button:active {
   }
 
   .pin-controls #alert-counter {
-    font-size: 16px;
+    font-size: 14px; /* Smaller than 16px */
     padding: 8px 12px;
+    height: 36px; /* Match button height */
+    line-height: 1; /* Consistent line height */
     margin-left: 10px;
+    border-radius: 20px; /* Keep rounded look */
   }
 
   .weather-alerts {
@@ -1096,11 +1102,11 @@ button:active {
 
   #address-search {
     max-width: 400px;
-    padding: 8px; /* Match button padding */
-    height: 36px; /* Match button height */
+    padding: 8px;
+    height: 36px;
     font-size: 14px;
-    margin: 0; /* Remove vertical margin */
-    line-height: 1; /* Consistent line height */
+    margin: 0;
+    line-height: 1;
   }
 
   button {
