@@ -27,7 +27,7 @@
             </div>
         </div>
         <div id="map-container" class="map-container" style="display: none;">
-            <div id="weather-alerts" class="weather-alerts">
+            <div id="weather-alerts" class="weather Alerts">
                 <h3>Weather Alerts (Milledgeville, GA)</h3>
                 <div id="weather-content">Loading weather alerts...</div>
                 <a href="https://forecast.weather.gov/MapClick.php?lat=33.0801&lon=-83.2321" target="_blank" id="weather-link">Full Weather Report</a>
@@ -37,8 +37,10 @@
                 <button onclick="searchAddress()">Search</button>
                 <button onclick="editProfile()">Profile</button>
                 <button id="messages-btn" onclick="fetchMessages()">Messages</button>
+                <button onclick="showStats()">Stats</button>
                 <button onclick="signOut()">Sign Out</button>
                 <button id="admin-btn" onclick="showAdminPanel()" style="display: none;">Admin Panel</button>
+                <button id="heatmap-btn" onclick="toggleHeatmap()" style="display: none;">Show Heatmap</button>
             </div>
             <div class="map-chat-container">
                 <div id="map"></div>
@@ -59,8 +61,11 @@
                     <option value="fire">Fire</option>
                     <option value="roadblock">Roadblock</option>
                     <option value="wreck">Wreck/Crash</option>
+                    <option value="flood">Flood</option>
+                    <option value="accident">Accident</option>
                 </select>
                 <input type="text" id="description" placeholder="Alert Description" maxlength="100">
+                <input type="number" id="expires-in-hours" placeholder="Expires in Hours" min="1" max="24">
                 <input type="file" id="media-upload" accept="image/*,video/mp4,video/webm">
                 <button onclick="addPin()">Add Alert</button>
                 <span id="alert-counter">Current Alerts: 0</span>
@@ -124,9 +129,30 @@
             <div id="messages-list"></div>
             <button onclick="showMap()">Back to Map</button>
         </div>
+        <div id="stats-container" class="stats-container" style="display: none;">
+            <h2>Your Stats</h2>
+            <div class="profile-picture-section">
+                <img id="stats-picture" src="https://via.placeholder.com/150" alt="Profile Picture">
+            </div>
+            <div class="stats-details">
+                <p><strong>Username:</strong> <span id="stats-username"></span></p>
+                <p><strong>Total Pins:</strong> <span id="stats-pins"></span></p>
+                <p><strong>Reputation:</strong> <span id="stats-reputation"></span></p>
+                <p><strong>Upvotes:</strong> <span id="stats-upvotes"></span></p>
+                <p><strong>Downvotes:</strong> <span id="stats-downvotes"></span></p>
+                <p><strong>Verifications:</strong> <span id="stats-verifications"></span></p>
+                <p><strong>Join Date:</strong> <span id="stats-join-date"></span></p>
+                <p><strong>Badges:</strong> <span id="stats-badges"></span></p>
+            </div>
+            <div id="stats-chart">
+                <canvas id="stats-canvas"></canvas>
+            </div>
+            <button onclick="closeStats()">Close</button>
+        </div>
         <div id="admin-panel" style="display: none;"></div>
     </div>
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBBfsJsm_7LQbjuU5Y8CaphIBHBD3JCwSQ&libraries=places,marker&callback=initMap" defer></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBBfsJsm_7LQbjuU5Y8CaphIBHBD3JCwSQ&libraries=places,marker,visualization&callback=initMap" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="/js/script.js"></script>
 </body>
 </html>
