@@ -45,7 +45,7 @@ async function subscribeToPush() {
       const registration = await navigator.serviceWorker.register('/sw.js');
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: await urlBase64ToUint8Array('BIEBvt54qcb86fNJ9akRzuzzgvgY5Vi0hzvqSflNatlzIjVR6Clz02wY0by5vANRrLljbJoLR1uyRroK3Up21NM') // Replace with your VAPID public key
+        applicationServerKey: await urlBase64ToUint8Array('YOUR_PUBLIC_VAPID_KEY') // Replace with your VAPID public key
       });
       await fetch('https://pinmap-website.onrender.com/subscribe', {
         method: 'POST',
@@ -84,7 +84,7 @@ function initMap() {
       fetchWeatherAlerts();
       setupWebSocket();
       checkNewMessages();
-      subscribeToPush(); // Add push subscription
+      subscribeToPush();
       document.getElementById('admin-btn').style.display = isAdmin ? 'inline-block' : 'none';
     } catch (err) {
       console.error('Invalid token:', err);
@@ -832,23 +832,23 @@ async function fetchPins() {
 
       const row = document.createElement('tr');
       row.innerHTML = `
-        <td>${pin.description}</td>
-        <td>${pin.latitude.toFixed(4)}</td>
-        <td>${pin.longitude.toFixed(4)}</td>
-        <td>
+        <td data-label="Description">${pin.description}</td>
+        <td data-label="Latitude">${pin.latitude.toFixed(4)}</td>
+        <td data-label="Longitude">${pin.longitude.toFixed(4)}</td>
+        <td data-label="Posted By">
           <span onclick="viewProfile('${pin.userId._id}')" style="cursor: pointer; color: #3498db;">
             ${pin.username || pin.userEmail}
             <img src="https://img.icons8.com/small/16/visible.png" class="profile-view-icon">
           </span>
         </td>
-        <td>${new Date(pin.createdAt).toLocaleString()}</td>
-        <td>${new Date(pin.expiresAt).toLocaleString()}</td>
-        <td>
+        <td data-label="Timestamp (ET)">${new Date(pin.createdAt).toLocaleString()}</td>
+        <td data-label="Expires">${new Date(pin.expiresAt).toLocaleString()}</td>
+        <td data-label="Media">
           ${pin.media ? `
             <img src="https://img.icons8.com/small/20/image.png" class="media-view-icon" onclick="viewMedia('${pin.media}')">
           ` : 'N/A'}
         </td>
-        <td>
+        <td data-label="Actions">
           <div class="action-buttons">
             <button class="standard-btn goto-btn" onclick="goToPinLocation(${pin.latitude}, ${pin.longitude})">Go To</button>
             <button class="standard-btn remove-btn" onclick="removePin('${pin._id}')">Remove</button>
