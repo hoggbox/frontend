@@ -33,7 +33,7 @@ header h1 {
 
 .login-form {
   max-width: 400px;
-  margin: 0 auto 30px;
+  margin: 50px auto;
   background: #ffffff;
   padding: 30px;
   border-radius: 10px;
@@ -47,10 +47,32 @@ header h1 {
   color: #2c3e50;
 }
 
+.login-form input,
+.login-form label {
+  display: block;
+  width: 100%;
+  max-width: 300px;
+  margin: 10px auto;
+}
+
 .login-form button {
   display: inline-block;
   width: 45%;
-  margin: 5px 2.5%;
+  margin: 10px 2.5%;
+  background: #3498db;
+  color: #ffffff;
+}
+
+.login-form button:hover {
+  background: #2980b9;
+}
+
+.login-form .register-btn {
+  background: #2ecc71;
+}
+
+.login-form .register-btn:hover {
+  background: #27ae60;
 }
 
 .map-container {
@@ -360,7 +382,6 @@ header h1 {
   border-radius: 10px;
   overflow: hidden;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-  transition: max-width 0.3s ease;
   table-layout: fixed;
 }
 
@@ -391,12 +412,16 @@ header h1 {
   word-wrap: break-word;
   vertical-align: middle;
   text-align: center;
+  max-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .pin-table th:nth-child(1), .pin-table td:nth-child(1) { width: 15%; }
 .pin-table th:nth-child(2), .pin-table td:nth-child(2) { width: 10%; }
 .pin-table th:nth-child(3), .pin-table td:nth-child(3) { width: 10%; }
-pin-table th:nth-child(4), .pin-table td:nth-child(4) { width: 15%; }
+.pin-table th:nth-child(4), .pin-table td:nth-child(4) { width: 15%; }
 .pin-table th:nth-child(5), .pin-table td:nth-child(5) { width: 15%; }
 .pin-table th:nth-child(6), .pin-table td:nth-child(6) { width: 15%; }
 .pin-table th:nth-child(7), .pin-table td:nth-child(7) { width: 5%; }
