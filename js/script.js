@@ -15,7 +15,7 @@ let searchQuery = '';
 let currentProfileUserId;
 let ws;
 let username;
-let map; // Declare map globally
+let map;
 
 function getDistance(lat1, lon1, lat2, lon2) {
   const R = 6371000;
@@ -28,7 +28,7 @@ function getDistance(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
-function initMap() {  
+function initMap() {
   map = new google.maps.Map(document.getElementById('map'), {
     zoom: 12,
     styles: [
@@ -49,7 +49,9 @@ function initMap() {
       startMap();
       fetchWeatherAlerts();
       setupWebSocket();
+      fetchInitialChatMessages();
       checkNewMessages();
+      setInterval(fetchPins, 5000); // Refresh pins every 5 seconds
       document.getElementById('admin-btn').style.display = isAdmin ? 'inline-block' : 'none';
     } catch (err) {
       console.error('Invalid token:', err);
@@ -115,7 +117,12 @@ function setupWebSocket() {
   ws.onopen = () => {
     console.log('WebSocket connected');
     const payload = JSON.parse(atob(token.split('.')[1]));
-    fetch(`https://pinmap-website.onrender.com/set-ws-email?email=${encodeURIComponent(payload.email)}&userId=${encodeURIComponent(userId)}`);
+    ws.send(JSON.stringify({
+      type: 'auth',
+      userId: userId,
+      email: payload.email,
+      token: token
+    }));
   };
   ws.onmessage = (event) => {
     const data = JSON.parse(event.data);
@@ -157,6 +164,27 @@ function setupWebSocket() {
     console.error('WebSocket error:', err);
     alert('WebSocket error occurred. Check your connection.');
   };
+}
+
+async function fetchInitialChatMessages() {
+  try {
+    const response = await fetch('https://pinmap-website.onrender.com/chat', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (response.ok) {
+      const messages = await response.json();
+      const chatMessages = document.getElementById('chat-messages');
+      chatMessages.innerHTML = '';
+      messages.reverse().forEach(msg => addChatMessage({
+        userId: msg.userId,
+        username: msg.username,
+        message: msg.message,
+        timestamp: msg.timestamp
+      }));
+    }
+  } catch (err) {
+    console.error('Error fetching initial chat messages:', err);
+  }
 }
 
 function addChatMessage(data) {
@@ -343,6 +371,7 @@ async function login() {
       startMap();
       fetchWeatherAlerts();
       setupWebSocket();
+      fetchInitialChatMessages();
       checkNewMessages();
     } else {
       alert(`Login failed: ${data.message || 'No token received'}`);
@@ -401,25 +430,27 @@ async function addPin() {
   formData.append('description', description);
   if (mediaFile) formData.append('media', mediaFile);
 
-  const postResponse = await fetch('https://pinmap-website.onrender.com/pins', {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${token}` },
-    body: formData,
-  });
-  if (postResponse.ok) {
-    if (ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type: 'newPin', pin: { latitude: currentLatLng.lat, longitude: currentLatLng.lng, description } }));
+  try {
+    const postResponse = await fetch('https://pinmap-website.onrender.com/pins', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+      body: formData,
+    });
+    if (postResponse.ok) {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'newPin', pin: { latitude: currentLatLng.lat, longitude: currentLatLng.lng, description } }));
+      }
+      fetchPins();
+      document.getElementById('pin-type').value = '';
+      document.getElementById('description').value = '';
+      document.getElementById('media-upload').value = '';
+      currentLatLng = null;
+    } else {
+      throw new Error(await postResponse.text());
     }
-    fetchPins();
-    document.getElementById('pin-type').value = '';
-    document.getElementById('description').value = '';
-    document.getElementById('media-upload').value = '';
-    currentLatLng = null;
-  } else if (postResponse.status === 401) {
-    signOut();
-    alert('Session expired. Please log in again.');
-  } else {
-    alert(`Failed to add alert: ${await postResponse.text()}`);
+  } catch (err) {
+    console.error('Add pin error:', err);
+    alert(`Failed to add alert: ${err.message}`);
   }
 }
 
@@ -433,11 +464,11 @@ async function extendPin(pinId) {
       alert('Pin expiration extended by 2 hours');
       fetchPins();
     } else {
-      alert(await response.text());
+      throw new Error(await response.text());
     }
   } catch (err) {
     console.error('Extend pin error:', err);
-    alert('Error extending pin');
+    alert('Error extending pin: ' + err.message);
   }
 }
 
@@ -452,11 +483,11 @@ async function verifyPin(pinId) {
       alert(`Pin verified. Verifications: ${result.verifications}${result.verified ? ' (Verified)' : ''}`);
       fetchPins();
     } else {
-      alert(result.message);
+      throw new Error(result.message);
     }
   } catch (err) {
     console.error('Verify pin error:', err);
-    alert('Error verifying pin');
+    alert('Error verifying pin: ' + err.message);
   }
 }
 
@@ -482,11 +513,11 @@ async function showComments(pinId) {
       document.body.appendChild(commentModal);
       renderComments(pinId, comments);
     } else {
-      alert('Failed to fetch comments');
+      throw new Error('Failed to fetch comments');
     }
   } catch (err) {
     console.error('Fetch comments error:', err);
-    alert('Error fetching comments');
+    alert('Error fetching comments: ' + err.message);
   }
 }
 
@@ -536,11 +567,11 @@ async function addComment(pinId, parentCommentId = null) {
       closeComments();
       showComments(pinId);
     } else {
-      alert(await response.text());
+      throw new Error(await response.text());
     }
   } catch (err) {
     console.error('Add comment error:', err);
-    alert('Error adding comment');
+    alert('Error adding comment: ' + err.message);
   }
 }
 
@@ -568,11 +599,11 @@ async function likeComment(commentId) {
       closeComments();
       showComments(pinId);
     } else {
-      alert(await response.text());
+      throw new Error(await response.text());
     }
   } catch (err) {
     console.error('Like comment error:', err);
-    alert('Error liking comment');
+    alert('Error liking comment: ' + err.message);
   }
 }
 
@@ -587,11 +618,11 @@ async function dislikeComment(commentId) {
       closeComments();
       showComments(pinId);
     } else {
-      alert(await response.text());
+      throw new Error(await response.text());
     }
   } catch (err) {
     console.error('Dislike comment error:', err);
-    alert('Error disliking comment');
+    alert('Error disliking comment: ' + err.message);
   }
 }
 
@@ -616,11 +647,11 @@ async function removePin(pinId) {
       signOut();
       alert('Session expired. Please log in again.');
     } else {
-      alert(await response.text());
+      throw new Error(await response.text());
     }
   } catch (err) {
     console.error('Remove pin error:', err);
-    alert('Error removing pin');
+    alert('Error removing pin: ' + err.message);
   }
 }
 
@@ -643,11 +674,11 @@ async function voteToRemove(pinId) {
       }
       fetchPins();
     } else {
-      alert(result.message);
+      throw new Error(result.message);
     }
   } catch (err) {
     console.error('Vote error:', err);
-    alert('Error voting');
+    alert('Error voting: ' + err.message);
   }
 }
 
@@ -822,7 +853,7 @@ async function fetchPins() {
     `;
   } catch (err) {
     console.error('Fetch pins error:', err);
-    alert('Error fetching pins');
+    alert('Error fetching pins: ' + err.message);
   }
 }
 
@@ -876,11 +907,11 @@ async function fetchProfile() {
       document.getElementById('profile-sex').value = profile.sex || '';
       document.getElementById('profile-location').value = profile.location || '';
     } else {
-      alert('Failed to fetch profile');
+      throw new Error('Failed to fetch profile');
     }
   } catch (err) {
     console.error('Fetch profile error:', err);
-    alert('Error fetching profile');
+    alert('Error fetching profile: ' + err.message);
   }
 }
 
@@ -904,11 +935,11 @@ async function updateProfile() {
       fetchProfile();
       showMap();
     } else {
-      alert(await response.text());
+      throw new Error(await response.text());
     }
   } catch (err) {
     console.error('Update profile error:', err);
-    alert('Error updating profile');
+    alert('Error updating profile: ' + err.message);
   }
 }
 
@@ -929,18 +960,18 @@ async function viewProfile(userIdToView) {
       document.getElementById('view-profile-picture').style.display = 'block';
       document.getElementById('view-username').textContent = profile.username || profile.email;
       document.getElementById('view-location').textContent = profile.location || 'Not set';
-      document.getElementById('view-pin-count').textContent = profile.pinCount || 0;
+      document.getElementById('view-pin-count').textContent = profile.totalPins || 0; // Changed to totalPins
       document.getElementById('view-pin-stars').innerHTML = '★'.repeat(Math.floor(profile.reputation / 10));
       document.getElementById('view-reputation').textContent = profile.reputation || 0;
       document.getElementById('view-badges').textContent = profile.badges ? profile.badges.join(', ') : 'None';
       document.getElementById('map-container').style.display = 'none';
       document.getElementById('profile-view-container').style.display = 'block';
     } else {
-      alert('Failed to fetch user profile');
+      throw new Error('Failed to fetch user profile');
     }
   } catch (err) {
     console.error('View profile error:', err);
-    alert('Error viewing profile');
+    alert('Error viewing profile: ' + err.message);
   }
 }
 
@@ -951,35 +982,35 @@ function closeProfileView() {
 
 async function upvoteUser() {
   try {
-    const response = await fetch(`https://pinmap-website.onrender.com/auth/profile/${currentProfileUserId}/upvote`, {
+    const response = await fetch(`https://pinmap-website.onrender.com/auth/upvote/${currentProfileUserId}`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${token}` }
     });
     if (response.ok) {
       viewProfile(currentProfileUserId);
     } else {
-      alert(await response.text());
+      throw new Error(await response.text());
     }
   } catch (err) {
     console.error('Upvote error:', err);
-    alert('Error upvoting user');
+    alert('Error upvoting user: ' + err.message);
   }
 }
 
 async function downvoteUser() {
   try {
-    const response = await fetch(`https://pinmap-website.onrender.com/auth/profile/${currentProfileUserId}/downvote`, {
+    const response = await fetch(`https://pinmap-website.onrender.com/auth/downvote/${currentProfileUserId}`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${token}` }
     });
     if (response.ok) {
       viewProfile(currentProfileUserId);
     } else {
-      alert(await response.text());
+      throw new Error(await response.text());
     }
   } catch (err) {
     console.error('Downvote error:', err);
-    alert('Error downvoting user');
+    alert('Error downvoting user: ' + err.message);
   }
 }
 
@@ -988,7 +1019,7 @@ async function sendPrivateMessage() {
   const message = messageInput.value.trim();
   if (!message) return alert('Message cannot be empty');
   try {
-    const response = await fetch(`https://pinmap-website.onrender.com/messages/send/${currentProfileUserId}`, {
+    const response = await fetch(`https://pinmap-website.onrender.com/auth/message/${currentProfileUserId}`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ content: message })
@@ -996,21 +1027,21 @@ async function sendPrivateMessage() {
     if (response.ok) {
       messageInput.value = '';
       if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'privateMessage', recipientId: currentProfileUserId }));
+        ws.send(JSON.stringify({ type: 'privateMessage', senderId: userId, recipientId: currentProfileUserId, content: message }));
       }
       alert('Message sent');
     } else {
-      alert(`Failed to send message: ${await response.text()}`);
+      throw new Error(await response.text());
     }
   } catch (err) {
     console.error('Send message error:', err);
-    alert('Error sending message');
+    alert('Error sending message: ' + err.message);
   }
 }
 
 async function fetchMessages() {
   try {
-    const response = await fetch('https://pinmap-website.onrender.com/messages', {
+    const response = await fetch('https://pinmap-website.onrender.com/auth/messages/inbox', {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     if (response.ok) {
@@ -1019,9 +1050,9 @@ async function fetchMessages() {
       messagesList.innerHTML = '';
       messages.forEach(msg => {
         const msgDiv = document.createElement('div');
-        msgDiv.className = 'message-item';
+        msgDiv.className = `message ${msg.read ? '' : 'unread'}`;
         msgDiv.innerHTML = `
-          <p><strong>${msg.sender.username || msg.sender.email}</strong> (${new Date(msg.timestamp).toLocaleString()}):</p>
+          <p><strong>${msg.senderId.username || msg.senderId.email}</strong> (${new Date(msg.timestamp).toLocaleString()}):</p>
           <p>${msg.content}</p>
         `;
         messagesList.appendChild(msgDiv);
@@ -1029,11 +1060,11 @@ async function fetchMessages() {
       document.getElementById('map-container').style.display = 'none';
       document.getElementById('messages-container').style.display = 'block';
     } else {
-      alert(`Failed to fetch messages: ${await response.text()}`);
+      throw new Error(await response.text());
     }
   } catch (err) {
     console.error('Fetch messages error:', err);
-    alert('Error fetching messages');
+    alert('Error fetching messages: ' + err.message);
   }
 }
 
@@ -1044,7 +1075,7 @@ async function checkNewMessages() {
     });
     if (response.ok) {
       const unreadCount = await response.json();
-      const messagesBtn = document.querySelector('#map-container .controls button:nth-child(2)');
+      const messagesBtn = document.querySelector('#map-container .controls button:nth-child(3)'); // Adjusted for button order
       messagesBtn.textContent = `Messages${unreadCount > 0 ? ` (${unreadCount})` : ''}`;
     }
   } catch (err) {
