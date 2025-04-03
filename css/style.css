@@ -10,7 +10,7 @@ body {
               linear-gradient(135deg, #3498db 0%, #2980b9 100%);
   color: #2c3e50;
   line-height: 1.6;
-  padding: 10px; /* Base padding for phones */
+  padding: 10px; /* Tight for phones */
 }
 
 /* Base (Mobile-First) Styles */
@@ -21,11 +21,11 @@ body {
 
 header {
   text-align: center;
-  margin-bottom: 20px;
+  margin-bottom: 15px;
 }
 
 header h1 {
-  font-size: 24px; /* Smaller for phones */
+  font-size: 22px; /* Slightly smaller for phones */
   font-weight: 700;
   color: #ecf0f1;
   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
@@ -33,18 +33,18 @@ header h1 {
 
 .login-form {
   width: 100%;
-  max-width: 300px; /* Compact for phones */
-  margin: 20px auto;
+  max-width: 280px; /* Tighter for phones */
+  margin: 15px auto;
   background: #ffffff;
-  padding: 20px;
-  border-radius: 10px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  padding: 15px;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   text-align: center;
 }
 
 .login-form h2 {
-  font-size: 20px;
-  margin-bottom: 15px;
+  font-size: 18px;
+  margin-bottom: 10px;
   color: #2c3e50;
 }
 
@@ -52,12 +52,12 @@ header h1 {
 .login-form label {
   display: block;
   width: 100%;
-  margin: 8px 0;
+  margin: 6px 0;
 }
 
 .login-form button {
   width: 100%;
-  margin: 8px 0;
+  margin: 6px 0;
   background: #3498db;
   color: #ffffff;
 }
@@ -82,31 +82,31 @@ header h1 {
 
 .map-chat-container {
   display: flex;
-  flex-direction: column; /* Stack for phones */
-  gap: 10px;
+  flex-direction: column;
+  gap: 8px;
   width: 100%;
 }
 
 #map {
   width: 100%;
-  height: 300px; /* Shorter for phones */
-  border-radius: 10px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  height: 250px; /* Slightly shorter for phones */
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
 
 #chat-container {
   width: 100%;
   background: #ffffff;
-  padding: 10px;
-  border-radius: 10px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  padding: 8px;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   display: flex;
   flex-direction: column;
 }
 
 #chat-container h3 {
-  font-size: 16px;
-  margin-bottom: 8px;
+  font-size: 14px;
+  margin-bottom: 6px;
   color: #2c3e50;
   text-align: center;
 }
@@ -114,10 +114,10 @@ header h1 {
 #chat-messages {
   flex-grow: 1;
   overflow-y: auto;
-  max-height: 200px; /* Smaller for phones */
+  max-height: 180px; /* Compact for phones */
   border: 1px solid #ddd;
-  border-radius: 5px;
-  padding: 8px;
+  border-radius: 4px;
+  padding: 6px;
   background: #f9f9f9;
 }
 
@@ -130,9 +130,9 @@ header h1 {
 }
 
 .chat-message {
-  padding: 8px;
-  margin: 4px 0;
-  border-radius: 5px;
+  padding: 6px;
+  margin: 3px 0;
+  border-radius: 4px;
   word-wrap: break-word;
 }
 
@@ -142,23 +142,23 @@ header h1 {
 }
 
 .chat-message .timestamp {
-  font-size: 10px;
+  font-size: 9px;
   color: #7f8c8d;
-  margin-left: 8px;
+  margin-left: 6px;
 }
 
 #chat-input-container {
   display: flex;
-  gap: 8px;
-  margin-top: 8px;
+  gap: 6px;
+  margin-top: 6px;
 }
 
 #chat-input {
   flex-grow: 1;
-  padding: 8px;
+  padding: 6px;
   border: 1px solid #ddd;
-  border-radius: 5px;
-  font-size: 12px;
+  border-radius: 4px;
+  font-size: 11px;
   background: #f9f9f9;
 }
 
@@ -178,35 +178,35 @@ header h1 {
 
 .controls {
   display: flex;
-  flex-direction: column; /* Stack for phones */
-  gap: 8px;
-  margin-bottom: 15px;
-  padding: 10px;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+  padding: 8px;
   background: #ffffff;
-  border-radius: 10px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   width: 100%;
 }
 
 .pin-controls {
   display: flex;
-  flex-direction: column; /* Stack for phones */
-  gap: 8px;
-  margin: 15px 0;
-  padding: 10px;
+  flex-direction: column;
+  gap: 6px;
+  margin: 10px 0;
+  padding: 8px;
   background: #ffffff;
-  border-radius: 10px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   width: 100%;
 }
 
 .pin-controls select,
 .pin-controls input[type="text"],
 .pin-controls input[type="file"] {
-  padding: 8px;
+  padding: 6px;
   border: 1px solid #ddd;
-  border-radius: 5px;
-  font-size: 14px;
+  border-radius: 4px;
+  font-size: 12px;
   background: #f9f9f9;
   transition: border-color 0.3s ease;
   width: 100%;
@@ -224,40 +224,40 @@ header h1 {
 }
 
 .pin-controls #alert-counter {
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 700;
   color: #ffffff;
   background: #e74c3c;
-  padding: 6px 10px;
-  border-radius: 20px;
+  padding: 5px 8px;
+  border-radius: 16px;
   text-align: center;
 }
 
 #pin-list {
-  margin-top: 15px;
+  margin-top: 10px;
   width: 100%;
   overflow-x: auto;
 }
 
 .weather-alerts {
-  margin: 10px auto;
-  padding: 10px;
+  margin: 8px auto;
+  padding: 8px;
   background: #ffffff;
-  border-radius: 10px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   width: 100%;
   max-width: 100%;
   text-align: center;
 }
 
 .weather-alerts h3 {
-  font-size: 16px;
-  margin-bottom: 8px;
+  font-size: 14px;
+  margin-bottom: 6px;
   color: #2c3e50;
 }
 
 #weather-content {
-  font-size: 12px;
+  font-size: 11px;
   color: #34495e;
 }
 
@@ -268,8 +268,8 @@ header h1 {
 
 #weather-link {
   display: block;
-  margin-top: 8px;
-  font-size: 12px;
+  margin-top: 6px;
+  font-size: 11px;
   color: #3498db;
   text-decoration: none;
 }
@@ -285,23 +285,23 @@ header h1 {
 
 .admin-section {
   background: #ffffff;
-  padding: 20px;
-  border-radius: 10px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-  margin-bottom: 15px;
+  padding: 15px;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  margin-bottom: 10px;
 }
 
 .admin-section h2 {
-  font-size: 20px;
-  margin-bottom: 15px;
+  font-size: 18px;
+  margin-bottom: 10px;
   color: #2c3e50;
 }
 
 .bulk-actions {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-bottom: 15px;
+  gap: 6px;
+  margin-bottom: 10px;
 }
 
 .bulk-actions button {
@@ -316,25 +316,26 @@ header h1 {
 .filter-container {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-bottom: 15px;
-  padding: 10px;
+  gap: 6px;
+  margin-bottom: 10px;
+  padding: 8px;
   background: #ffffff;
-  border-radius: 10px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .filter-container label {
   font-weight: 600;
   color: #2c3e50;
+  font-size: 12px;
 }
 
 .filter-container select,
 .filter-container input[type="text"] {
-  padding: 8px;
+  padding: 6px;
   border: 1px solid #ddd;
-  border-radius: 5px;
-  font-size: 14px;
+  border-radius: 4px;
+  font-size: 12px;
   background: #f9f9f9;
   transition: border-color 0.3s ease;
   width: 100%;
@@ -363,10 +364,10 @@ header h1 {
   width: 100%;
   border-collapse: collapse;
   background: #ffffff;
-  border-radius: 10px;
+  border-radius: 8px;
   overflow: hidden;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-  display: block; /* Stack for phones */
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  display: block;
   overflow-x: auto;
 }
 
@@ -376,15 +377,15 @@ header h1 {
 
 .pin-table tr {
   display: block;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   border: 1px solid #ddd;
-  padding: 10px;
+  padding: 8px;
 }
 
 .pin-table td {
   display: block;
   text-align: left;
-  padding: 8px;
+  padding: 6px;
   border-bottom: none;
   max-width: 100%;
   white-space: normal;
@@ -394,21 +395,22 @@ header h1 {
   content: attr(data-label);
   font-weight: bold;
   display: block;
-  margin-bottom: 4px;
+  margin-bottom: 3px;
+  font-size: 12px;
 }
 
 .pin-table .action-buttons {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: 3px;
   justify-content: center;
 }
 
 .pagination-container {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-top: 15px;
+  gap: 6px;
+  margin-top: 10px;
   text-align: center;
 }
 
@@ -427,22 +429,23 @@ header h1 {
 }
 
 .pagination-container span {
-  font-size: 14px;
+  font-size: 12px;
   color: #2c3e50;
 }
 
 #analytics-chart {
-  margin-top: 20px;
+  margin-top: 15px;
 }
 
 #analytics-chart h3 {
   text-align: center;
-  margin-bottom: 15px;
+  margin-bottom: 10px;
   color: #2c3e50;
+  font-size: 14px;
 }
 
 #registration-chart {
-  max-height: 300px;
+  max-height: 250px;
 }
 
 .modal {
@@ -460,27 +463,27 @@ header h1 {
 
 .modal-content {
   background: #ffffff;
-  padding: 20px;
-  border-radius: 10px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  padding: 15px;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
   text-align: center;
   width: 90%;
-  max-width: 300px;
+  max-width: 280px;
 }
 
 .modal-content h2 {
-  margin-bottom: 15px;
+  margin-bottom: 10px;
   color: #2c3e50;
-  font-size: 20px;
+  font-size: 18px;
 }
 
 .modal-content p {
-  margin: 8px 0;
-  font-size: 14px;
+  margin: 6px 0;
+  font-size: 12px;
 }
 
 .modal-content button {
-  margin-top: 15px;
+  margin-top: 10px;
   background: #3498db;
   color: #ffffff;
 }
@@ -495,11 +498,11 @@ input[type="password"],
 input[type="date"],
 input[type="file"] {
   width: 100%;
-  padding: 10px;
-  margin: 8px 0;
+  padding: 8px;
+  margin: 6px 0;
   border: 1px solid #ddd;
-  border-radius: 5px;
-  font-size: 14px;
+  border-radius: 4px;
+  font-size: 12px;
   background: #f9f9f9;
   transition: border-color 0.3s ease;
 }
@@ -519,15 +522,15 @@ input[type="file"]:focus {
 
 /* Button Styles (Base) */
 button {
-  padding: 8px 16px;
+  padding: 6px 12px;
   border: none;
-  border-radius: 5px;
-  font-size: 12px;
+  border-radius: 4px;
+  font-size: 11px;
   font-weight: 600;
   cursor: pointer;
   transition: background 0.3s ease, transform 0.2s ease;
   width: 100%;
-  height: 36px;
+  height: 32px;
   line-height: 1;
   box-sizing: border-box;
 }
@@ -541,12 +544,12 @@ button:active {
 }
 
 .standard-btn {
-  padding: 4px 8px;
-  font-size: 10px;
-  min-width: 60px;
-  height: 24px;
+  padding: 3px 6px;
+  font-size: 9px;
+  min-width: 50px;
+  height: 22px;
   border: none;
-  border-radius: 5px;
+  border-radius: 4px;
   cursor: pointer;
   color: #fff;
   text-align: center;
@@ -564,21 +567,22 @@ button:active {
 /* Desktop Styles */
 @media (min-width: 769px) {
   body {
-    padding: 20px; /* Restore desktop padding */
+    padding: 20px;
   }
 
   #app, .map-container, .controls, .pin-controls, #pin-list, .admin-container {
-    max-width: 2000px; /* Your wide layout */
+    max-width: 2000px;
   }
 
   header h1 {
-    font-size: 36px; /* Bigger for desktop */
+    font-size: 36px;
   }
 
   .login-form {
     max-width: 400px;
     margin: 50px auto;
     padding: 30px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
   }
 
   .login-form h2 {
@@ -595,22 +599,26 @@ button:active {
   .login-form button {
     width: 45%;
     margin: 10px 2.5%;
+    height: 40px;
+    font-size: 14px;
   }
 
   .map-chat-container {
-    flex-direction: row; /* Side-by-side for desktop */
+    flex-direction: row;
     gap: 20px;
   }
 
   #map {
     width: 75%;
-    height: 600px; /* Full height for desktop */
+    height: 600px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
   }
 
   #chat-container {
     width: 25%;
     padding: 15px;
     height: 600px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
   }
 
   #chat-container h3 {
@@ -619,7 +627,8 @@ button:active {
   }
 
   #chat-messages {
-    max-height: 500px; /* Larger for desktop */
+    max-height: 500px;
+    padding: 10px;
   }
 
   .chat-message {
@@ -643,18 +652,20 @@ button:active {
   }
 
   .controls {
-    flex-direction: row; /* Horizontal for desktop */
+    flex-direction: row;
     gap: 10px;
     margin-bottom: 20px;
     padding: 15px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
   }
 
   .pin-controls {
-    flex-direction: row; /* Horizontal for desktop */
+    flex-direction: row;
     gap: 10px;
     margin: 20px 0;
     padding: 15px;
     flex-wrap: wrap;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
   }
 
   .pin-controls select,
@@ -669,6 +680,8 @@ button:active {
   .pin-controls button {
     flex: 0 0 auto;
     width: auto;
+    height: 40px;
+    font-size: 14px;
   }
 
   .pin-controls #alert-counter {
@@ -681,6 +694,7 @@ button:active {
     max-width: 600px;
     margin: 15px auto;
     padding: 15px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
   }
 
   .weather-alerts h3 {
@@ -700,6 +714,7 @@ button:active {
   .admin-section {
     padding: 30px;
     margin-bottom: 20px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
   }
 
   .admin-section h2 {
@@ -718,16 +733,18 @@ button:active {
     gap: 15px;
     margin-bottom: 20px;
     padding: 15px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
   }
 
   .pin-table {
     max-width: 2000px;
-    display: table; /* Restore table layout */
+    display: table;
     table-layout: fixed;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
   }
 
   .pin-table thead {
-    display: table-header-group; /* Show headers */
+    display: table-header-group;
   }
 
   .pin-table tr {
@@ -749,10 +766,9 @@ button:active {
   }
 
   .pin-table td:before {
-    content: none; /* Remove pseudo-headers */
+    content: none;
   }
 
-  /* Desktop column widths */
   .pin-table th:nth-child(1), .pin-table td:nth-child(1) { width: 15%; }
   .pin-table th:nth-child(2), .pin-table td:nth-child(2) { width: 10%; }
   .pin-table th:nth-child(3), .pin-table td:nth-child(3) { width: 10%; }
@@ -796,6 +812,7 @@ button:active {
   .modal-content {
     max-width: 400px;
     padding: 30px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
   }
 
   .modal-content h2 {
@@ -810,6 +827,8 @@ button:active {
 
   .modal-content button {
     margin-top: 20px;
+    height: 40px;
+    font-size: 14px;
   }
 
   input[type="text"],
@@ -888,50 +907,51 @@ button:active {
 .close-btn { background-color: #95a5a6; }
 .close-btn:hover { background-color: #7f8c8d; }
 
+/* Rest of the styles (unchanged for brevity) */
 .profile-container,
 .profile-view-container {
   width: 100%;
-  max-width: 300px;
-  margin: 20px auto;
+  max-width: 280px;
+  margin: 15px auto;
   background: #ffffff;
-  padding: 20px;
-  border-radius: 10px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  padding: 15px;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   text-align: center;
 }
 
 .profile-container h2,
 .profile-view-container h2 {
-  font-size: 20px;
-  margin-bottom: 15px;
+  font-size: 18px;
+  margin-bottom: 10px;
   color: #2c3e50;
 }
 
 .profile-picture-section {
-  margin: 15px 0;
+  margin: 10px 0;
 }
 
 .profile-picture-section img {
-  max-width: 100px;
-  max-height: 100px;
+  max-width: 80px;
+  max-height: 80px;
   border-radius: 50%;
   display: block;
-  margin: 0 auto 10px;
+  margin: 0 auto 8px;
   border: 2px solid #ddd;
 }
 
 .profile-view-container .profile-picture-section img {
-  max-width: 80px;
-  max-height: 80px;
+  max-width: 60px;
+  max-height: 60px;
 }
 
 .profile-container select {
   width: 100%;
-  padding: 10px;
-  margin: 8px 0;
+  padding: 8px;
+  margin: 6px 0;
   border: 1px solid #ddd;
-  border-radius: 5px;
-  font-size: 14px;
+  border-radius: 4px;
+  font-size: 12px;
   background: #f9f9f9;
   transition: border-color 0.3s ease;
 }
@@ -942,8 +962,8 @@ button:active {
 }
 
 .profile-details p {
-  margin: 10px 0;
-  font-size: 14px;
+  margin: 8px 0;
+  font-size: 12px;
 }
 
 .profile-details strong {
@@ -953,36 +973,36 @@ button:active {
 .profile-buttons {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-top: 15px;
+  gap: 6px;
+  margin-top: 10px;
 }
 
 .profile-view-icon {
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
   vertical-align: middle;
-  margin-left: 6px;
+  margin-left: 4px;
   cursor: pointer;
 }
 
 .media-view-icon {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   vertical-align: middle;
-  margin-left: 6px;
+  margin-left: 4px;
   cursor: pointer;
 }
 
 .star {
   color: #f39c12;
-  font-size: 14px;
-  margin-left: 4px;
+  font-size: 12px;
+  margin-left: 3px;
 }
 
 .big-star {
   color: #e74c3c;
-  font-size: 20px;
-  margin-left: 4px;
+  font-size: 18px;
+  margin-left: 3px;
 }
 
 .online-status {
@@ -1010,24 +1030,24 @@ button:active {
 
 .media-container {
   background: #ffffff;
-  padding: 20px;
-  border-radius: 10px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  padding: 15px;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
   text-align: center;
   width: 90%;
-  max-width: 300px;
+  max-width: 280px;
 }
 
 #media-image, #media-video {
   max-width: 100%;
-  max-height: 200px;
-  margin-bottom: 15px;
-  border-radius: 5px;
+  max-height: 180px;
+  margin-bottom: 10px;
+  border-radius: 4px;
 }
 
 .reputation-icon {
-  font-size: 14px;
-  margin-left: 6px;
+  font-size: 12px;
+  margin-left: 4px;
   vertical-align: middle;
 }
 
@@ -1046,18 +1066,18 @@ button:active {
 .reputation-controls {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin-top: 15px;
+  gap: 8px;
+  margin-top: 10px;
 }
 
 .upvote-btn, .downvote-btn {
   width: 100%;
-  height: 36px;
-  border-radius: 5px;
+  height: 32px;
+  border-radius: 4px;
   background: #ecf0f1;
   color: #ffffff;
-  font-size: 16px;
-  line-height: 36px;
+  font-size: 14px;
+  line-height: 32px;
   padding: 0;
   position: relative;
   overflow: hidden;
@@ -1091,7 +1111,7 @@ button:active {
 }
 
 .profile-view-container > button {
-  margin-top: 20px;
+  margin-top: 15px;
   background: #e74c3c;
   color: #ffffff;
 }
@@ -1108,25 +1128,25 @@ button:active {
 
 .verified-icon {
   color: #2ecc71;
-  margin-left: 4px;
+  margin-left: 3px;
 }
 
 .comments-section {
-  padding: 8px;
+  padding: 6px;
   background: #f9f9f9;
   border: 1px solid #ddd;
-  border-radius: 5px;
-  margin-top: 8px;
+  border-radius: 4px;
+  margin-top: 6px;
   max-width: 100%;
   overflow-y: auto;
-  max-height: 150px;
+  max-height: 120px;
   display: none;
 }
 
 .comment {
-  padding: 6px;
-  margin: 4px 0;
-  border-radius: 5px;
+  padding: 5px;
+  margin: 3px 0;
+  border-radius: 4px;
 }
 
 .comment:nth-child(odd) {
@@ -1143,22 +1163,22 @@ button:active {
 }
 
 .comment .timestamp {
-  font-size: 10px;
+  font-size: 9px;
   color: #7f8c8d;
-  margin-left: 6px;
+  margin-left: 5px;
 }
 
 .comment-controls {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  margin-top: 8px;
+  gap: 5px;
+  margin-top: 6px;
 }
 
 .comment-controls input {
-  padding: 6px;
+  padding: 5px;
   border: 1px solid #ddd;
-  border-radius: 5px;
+  border-radius: 4px;
 }
 
 .comment-modal {
@@ -1167,35 +1187,35 @@ button:active {
   left: 50%;
   transform: translate(-50%, -50%);
   background: #ffffff;
-  padding: 15px;
-  border-radius: 10px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  padding: 10px;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
   width: 90%;
-  max-width: 300px;
-  max-height: 70vh;
+  max-width: 280px;
+  max-height: 60vh;
   overflow-y: auto;
   z-index: 1000;
 }
 
 .comment-modal h3 {
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   color: #2c3e50;
-  font-size: 16px;
+  font-size: 14px;
 }
 
 .comment-list {
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .comment-item {
-  padding: 8px;
-  margin: 4px 0;
-  border-radius: 5px;
+  padding: 6px;
+  margin: 3px 0;
+  border-radius: 4px;
   background: #f9f9f9;
 }
 
 .comment-item.reply {
-  margin-left: 10px;
+  margin-left: 8px;
   background: #ecf0f1;
 }
 
@@ -1205,24 +1225,24 @@ button:active {
 }
 
 .comment-item .timestamp {
-  font-size: 10px;
+  font-size: 9px;
   color: #7f8c8d;
-  margin-left: 6px;
+  margin-left: 5px;
 }
 
 .comment-actions {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  margin-top: 4px;
+  gap: 5px;
+  margin-top: 3px;
 }
 
 .like-btn, .dislike-btn {
   background: #ecf0f1;
   color: #2c3e50;
-  padding: 4px 8px;
-  border-radius: 5px;
-  font-size: 10px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  font-size: 9px;
   cursor: pointer;
   transition: background 0.3s ease;
 }
@@ -1240,9 +1260,9 @@ button:active {
 .reply-btn {
   background: #3498db;
   color: #ffffff;
-  padding: 4px 8px;
-  border-radius: 5px;
-  font-size: 10px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  font-size: 9px;
   cursor: pointer;
 }
 
@@ -1253,13 +1273,13 @@ button:active {
 .comment-input-container {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 5px;
 }
 
 .comment-input-container input {
-  padding: 6px;
+  padding: 5px;
   border: 1px solid #ddd;
-  border-radius: 5px;
+  border-radius: 4px;
 }
 
 .comment-input-container button {
@@ -1275,21 +1295,21 @@ button:active {
   display: inline-block;
   background: #3498db;
   color: #ffffff;
-  padding: 4px 8px;
-  border-radius: 12px;
-  margin: 4px;
-  font-size: 12px;
+  padding: 3px 6px;
+  border-radius: 10px;
+  margin: 3px;
+  font-size: 11px;
 }
 
 .messages-container {
   display: none;
   background: #ffffff;
-  padding: 15px;
-  border-radius: 10px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  padding: 10px;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   width: 90%;
-  max-width: 300px;
-  margin: 15px auto;
+  max-width: 280px;
+  margin: 10px auto;
   position: fixed;
   top: 50%;
   left: 50%;
@@ -1298,15 +1318,15 @@ button:active {
 }
 
 .messages-container h3 {
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   color: #2c3e50;
-  font-size: 16px;
+  font-size: 14px;
 }
 
 .message {
-  padding: 8px;
-  margin: 4px 0;
-  border-radius: 5px;
+  padding: 6px;
+  margin: 3px 0;
+  border-radius: 4px;
   background: #f9f9f9;
 }
 
@@ -1318,8 +1338,8 @@ button:active {
 .message-controls {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  margin-top: 8px;
+  gap: 5px;
+  margin-top: 6px;
 }
 
 #admin-panel {
@@ -1328,54 +1348,54 @@ button:active {
   left: 50%;
   transform: translate(-50%, -50%);
   background: #ecf0f1;
-  padding: 15px;
-  border-radius: 10px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  padding: 10px;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
   width: 90%;
-  max-width: 300px;
-  max-height: 70vh;
+  max-width: 280px;
+  max-height: 60vh;
   overflow-y: auto;
   z-index: 1000;
 }
 
 #admin-panel h2, #admin-panel h3 {
   color: #2c3e50;
-  margin-bottom: 15px;
-  font-size: 16px;
+  margin-bottom: 10px;
+  font-size: 14px;
 }
 
 #admin-panel .admin-section {
-  margin-bottom: 15px;
+  margin-bottom: 10px;
 }
 
 #admin-panel .bulk-actions {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-bottom: 15px;
+  gap: 6px;
+  margin-bottom: 10px;
 }
 
 #admin-panel .filter-container {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-bottom: 15px;
-  padding: 10px;
+  gap: 6px;
+  margin-bottom: 10px;
+  padding: 8px;
   background: #f9f9f9;
-  border-radius: 10px;
+  border-radius: 8px;
 }
 
 #admin-panel .pin-table {
   width: 100%;
-  margin-bottom: 15px;
+  margin-bottom: 10px;
 }
 
 #admin-panel input[type="text"] {
   width: 100%;
-  margin: 8px 0;
-  padding: 6px;
+  margin: 6px 0;
+  padding: 5px;
   border: 1px solid #ddd;
-  border-radius: 5px;
+  border-radius: 4px;
 }
 
 /* Desktop Overrides */
@@ -1396,6 +1416,7 @@ button:active {
     max-width: 400px;
     margin: 50px auto;
     padding: 30px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
   }
 
   .login-form h2 {
@@ -1412,6 +1433,8 @@ button:active {
   .login-form button {
     width: 45%;
     margin: 10px 2.5%;
+    height: 40px;
+    font-size: 14px;
   }
 
   .map-chat-container {
@@ -1422,12 +1445,14 @@ button:active {
   #map {
     width: 75%;
     height: 600px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
   }
 
   #chat-container {
     width: 25%;
     padding: 15px;
     height: 600px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
   }
 
   #chat-container h3 {
@@ -1437,6 +1462,7 @@ button:active {
 
   #chat-messages {
     max-height: 500px;
+    padding: 10px;
   }
 
   .chat-message {
@@ -1464,6 +1490,7 @@ button:active {
     gap: 10px;
     margin-bottom: 20px;
     padding: 15px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
   }
 
   .pin-controls {
@@ -1472,6 +1499,7 @@ button:active {
     margin: 20px 0;
     padding: 15px;
     flex-wrap: wrap;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
   }
 
   .pin-controls select,
@@ -1486,6 +1514,8 @@ button:active {
   .pin-controls button {
     flex: 0 0 auto;
     width: auto;
+    height: 40px;
+    font-size: 14px;
   }
 
   .pin-controls #alert-counter {
@@ -1498,6 +1528,7 @@ button:active {
     max-width: 600px;
     margin: 15px auto;
     padding: 15px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
   }
 
   .weather-alerts h3 {
@@ -1517,6 +1548,7 @@ button:active {
   .admin-section {
     padding: 30px;
     margin-bottom: 20px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
   }
 
   .admin-section h2 {
@@ -1535,12 +1567,14 @@ button:active {
     gap: 15px;
     margin-bottom: 20px;
     padding: 15px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
   }
 
   .pin-table {
     max-width: 2000px;
     display: table;
     table-layout: fixed;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
   }
 
   .pin-table thead {
@@ -1612,6 +1646,7 @@ button:active {
   .modal-content {
     max-width: 400px;
     padding: 30px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
   }
 
   .modal-content h2 {
@@ -1626,6 +1661,8 @@ button:active {
 
   .modal-content button {
     margin-top: 20px;
+    height: 40px;
+    font-size: 14px;
   }
 
   .profile-container,
@@ -1633,6 +1670,7 @@ button:active {
     max-width: 500px;
     margin: 30px auto;
     padding: 30px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
   }
 
   .profile-container h2,
@@ -1823,6 +1861,7 @@ button:active {
     max-width: 500px;
     padding: 20px;
     margin: 20px auto;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
   }
 
   .messages-container h3 {
@@ -1845,6 +1884,7 @@ button:active {
     max-width: 2000px;
     padding: 30px;
     max-height: 80vh;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
   }
 
   #admin-panel h2, #admin-panel h3 {
@@ -1869,5 +1909,34 @@ button:active {
     max-width: 300px;
     margin: 10px 0;
     padding: 8px;
+  }
+
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="date"],
+  input[type="file"] {
+    padding: 12px;
+    margin: 10px 0;
+    font-size: 16px;
+    max-width: 300px;
+  }
+
+  #address-search {
+    max-width: 400px;
+  }
+
+  button {
+    padding: 10px 20px;
+    font-size: 14px;
+    min-width: 120px;
+    height: 40px;
+  }
+
+  .standard-btn {
+    padding: 4px 8px;
+    font-size: 11px;
+    min-width: 80px;
+    height: 28px;
   }
 }
