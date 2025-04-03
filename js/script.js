@@ -3,7 +3,7 @@ let currentLatLng;
 let userId;
 let isAdmin = false;
 let geocoder;
-let markers = {}; // { userId: { marker, polyline, path } }
+let markers = {};
 let userLocationMarker;
 let userPath = [];
 let userPolyline = null;
@@ -47,7 +47,7 @@ async function subscribeToPush() {
       const registration = await navigator.serviceWorker.register('/sw.js');
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: await urlBase64ToUint8Array('YOUR_PUBLIC_VAPID_KEY') // Replace with your VAPID public key
+        applicationServerKey: await urlBase64ToUint8Array('YOUR_PUBLIC_VAPID_KEY')
       });
       await fetch('https://pinmap-website.onrender.com/subscribe', {
         method: 'POST',
@@ -80,7 +80,7 @@ function initMap() {
       const payload = JSON.parse(atob(token.split('.')[1]));
       userId = payload.id;
       isAdmin = payload.email === 'imhoggbox@gmail.com';
-      console.log('Logged in as:', payload.email, 'Admin:', isAdmin); // Debug login
+      console.log('Logged in as:', payload.email, 'Admin:', isAdmin);
       fetchProfileForUsername();
       showMap();
       startMap();
@@ -162,50 +162,52 @@ function setupWebSocket() {
   };
   ws.onmessage = (event) => {
     const data = JSON.parse(event.data);
-    console.log('WebSocket message:', data); // Debug all messages
-    if (data.type === 'location' && data.userId === userId && !isAdmin) {
+    console.log('WebSocket message:', data);
+    if (data.type === 'location' && data.userId === userId) {
       updateUserLocation(data.latitude, data.longitude);
     } else if (data.type === 'allLocations' && isAdmin) {
-      console.log('Admin received allLocations:', data.locations); // Confirm admin data
+      console.log('Admin received allLocations:', data.locations);
       data.locations.forEach(({ userId: uid, email, latitude, longitude }) => {
-        const pos = { lat: latitude, lng: longitude };
-        if (!markers[uid]) {
-          markers[uid] = {
-            marker: new google.maps.Marker({
-              position: pos,
-              map: map,
-              title: email,
-              icon: uid === userId ? 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png' : 'http://maps.google.com/mapfiles/ms/icons/red-dot.png'
-            }),
-            path: [pos],
-            polyline: new google.maps.Polyline({
+        if (uid !== userId) { // Skip self for admin—handled by updateUserLocation
+          const pos = { lat: latitude, lng: longitude };
+          if (!markers[uid]) {
+            markers[uid] = {
+              marker: new google.maps.Marker({
+                position: pos,
+                map: map,
+                title: email,
+                icon: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png'
+              }),
               path: [pos],
-              geodesic: true,
-              strokeColor: uid === userId ? '#0000FF' : '#FF0000',
-              strokeOpacity: 0.8,
-              strokeWeight: 2,
-              map: map
-            })
-          };
-        } else {
-          markers[uid].path.push(pos);
-          const oldPos = markers[uid].marker.getPosition();
-          const steps = 20;
-          const latStep = (pos.lat - oldPos.lat()) / steps;
-          const lngStep = (pos.lng - oldPos.lng()) / steps;
-          let step = 0;
+              polyline: new google.maps.Polyline({
+                path: [pos],
+                geodesic: true,
+                strokeColor: '#FF0000',
+                strokeOpacity: 0.8,
+                strokeWeight: 2,
+                map: map
+              })
+            };
+          } else {
+            markers[uid].path.push(pos);
+            const oldPos = markers[uid].marker.getPosition();
+            const steps = 20;
+            const latStep = (pos.lat - oldPos.lat()) / steps;
+            const lngStep = (pos.lng - oldPos.lng()) / steps;
+            let step = 0;
 
-          function animate() {
-            if (step <= steps) {
-              const nextLat = oldPos.lat() + latStep * step;
-              const nextLng = oldPos.lng() + lngStep * step;
-              markers[uid].marker.setPosition({ lat: nextLat, lng: nextLng });
-              step++;
-              requestAnimationFrame(animate);
+            function animate() {
+              if (step <= steps) {
+                const nextLat = oldPos.lat() + latStep * step;
+                const nextLng = oldPos.lng() + lngStep * step;
+                markers[uid].marker.setPosition({ lat: nextLat, lng: nextLng });
+                step++;
+                requestAnimationFrame(animate);
+              }
             }
+            animate();
+            markers[uid].polyline.setPath(markers[uid].path);
           }
-          animate();
-          markers[uid].polyline.setPath(markers[uid].path);
         }
       });
     } else if (data.type === 'chat') {
@@ -262,6 +264,7 @@ function startMap() {
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const userLocation = { lat: position.coords.latitude, lng: position.coords.longitude };
+        console.log('Initial position:', userLocation);
         map.setCenter(userLocation);
         updateUserLocation(userLocation.lat, userLocation.lng);
         fetchPins();
@@ -295,9 +298,9 @@ function startLocationTracking() {
   if (navigator.geolocation) {
     watchId = navigator.geolocation.watchPosition(
       (position) => {
-        console.log('New position:', position.coords.latitude, position.coords.longitude); // Debug position updates
+        console.log('New position:', position.coords.latitude, position.coords.longitude);
         const userLocation = { lat: position.coords.latitude, lng: position.coords.longitude };
-        if (!isAdmin) updateUserLocation(userLocation.lat, userLocation.lng);
+        updateUserLocation(userLocation.lat, userLocation.lng); // Always update for logged-in user
         if (ws.readyState === WebSocket.OPEN) {
           const payload = JSON.parse(atob(token.split('.')[1]));
           ws.send(JSON.stringify({
@@ -327,7 +330,7 @@ function startLocationTracking() {
           map.setCenter({ lat: 33.0801, lng: -83.2321 });
         }
       },
-      { enableHighAccuracy: true, timeout: 1000, maximumAge: 0 } // High-frequency updates
+      { enableHighAccuracy: true, timeout: 1000, maximumAge: 0 }
     );
   }
 }
@@ -358,6 +361,7 @@ function updateUserLocation(lat, lng) {
       strokeWeight: 2,
       map: map
     });
+    console.log('Marker created at:', newPos);
   } else {
     const oldPos = userLocationMarker.getPosition();
     const steps = 20;
@@ -376,6 +380,7 @@ function updateUserLocation(lat, lng) {
     }
     animate();
     userPolyline.setPath(userPath);
+    console.log('Marker moved to:', newPos);
   }
   if (!isAdmin) map.panTo(newPos);
 }
