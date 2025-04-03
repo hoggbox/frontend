@@ -600,7 +600,7 @@ button:active {
     width: 45%;
     margin: 10px 2.5%;
     padding: 8px 16px;
-    height: 36px; /* Smaller than 40px */
+    height: 36px;
     font-size: 14px;
   }
 
@@ -658,6 +658,7 @@ button:active {
     margin-bottom: 20px;
     padding: 15px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    align-items: center; /* Vertically align items */
   }
 
   .pin-controls {
@@ -682,7 +683,7 @@ button:active {
     flex: 0 0 auto;
     width: auto;
     padding: 8px 16px;
-    height: 36px; /* Smaller than 40px */
+    height: 36px;
     font-size: 14px;
   }
 
@@ -830,7 +831,7 @@ button:active {
   .modal-content button {
     margin-top: 20px;
     padding: 8px 16px;
-    height: 36px; /* Smaller than 40px */
+    height: 36px;
     font-size: 14px;
   }
 
@@ -920,8 +921,8 @@ button:active {
   }
 
   .upvote-btn, .downvote-btn {
-    width: 32px; /* Smaller than 40px */
-    height: 32px; /* Smaller than 40px */
+    width: 32px;
+    height: 32px;
     font-size: 16px;
     line-height: 32px;
   }
@@ -929,7 +930,7 @@ button:active {
   .profile-view-container > button {
     margin-top: 30px;
     padding: 8px 16px;
-    height: 36px; /* Smaller than 40px */
+    height: 36px;
   }
 
   .user-marker-label {
@@ -1095,13 +1096,18 @@ button:active {
 
   #address-search {
     max-width: 400px;
+    padding: 8px; /* Match button padding */
+    height: 36px; /* Match button height */
+    font-size: 14px;
+    margin: 0; /* Remove vertical margin */
+    line-height: 1; /* Consistent line height */
   }
 
   button {
-    padding: 8px 16px; /* Smaller than 10px 20px */
-    font-size: 12px; /* Smaller than 14px */
-    min-width: 100px; /* Smaller than 120px */
-    height: 32px; /* Smaller than 40px */
+    padding: 8px 16px;
+    font-size: 12px;
+    min-width: 100px;
+    height: 36px;
   }
 
   .standard-btn {
