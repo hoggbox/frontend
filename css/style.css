@@ -20,6 +20,12 @@ body {
 }
 
 header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: inherit;
+  padding: 10px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
   text-align: center;
   margin-bottom: 15px;
 }
@@ -89,7 +95,7 @@ header h1 {
 
 #map {
   width: 100%;
-  height: 250px;
+  height: calc(100vh - 300px);
   border-radius: 8px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
@@ -122,7 +128,7 @@ header h1 {
 }
 
 .chat-message:nth-child(odd) {
-  background: #ecf0f1;
+  background: #e0e6e8;
 }
 
 .chat-message:nth-child(even) {
@@ -164,6 +170,7 @@ header h1 {
 
 #chat-input:focus {
   border-color: #3498db;
+  box-shadow: 0 0 5px rgba(52, 152, 219, 0.5);
   outline: none;
 }
 
@@ -198,6 +205,7 @@ header h1 {
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   width: 100%;
+  position: relative;
 }
 
 .pin-controls select,
@@ -216,6 +224,7 @@ header h1 {
 .pin-controls input[type="text"]:focus,
 .pin-controls input[type="file"]:focus {
   border-color: #3498db;
+  box-shadow: 0 0 5px rgba(52, 152, 219, 0.5);
   outline: none;
 }
 
@@ -348,6 +357,7 @@ header h1 {
 .filter-container select:focus,
 .filter-container input[type="text"]:focus {
   border-color: #3498db;
+  box-shadow: 0 0 5px rgba(52, 152, 219, 0.5);
   outline: none;
 }
 
@@ -369,6 +379,18 @@ header h1 {
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   display: block;
   overflow-x: auto;
+  position: relative;
+}
+
+.pin-table::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 20px;
+  height: 100%;
+  background: linear-gradient(to left, rgba(0, 0, 0, 0.1), transparent);
+  pointer-events: none;
 }
 
 .pin-table thead {
@@ -513,6 +535,7 @@ input[type="password"]:focus,
 input[type="date"]:focus,
 input[type="file"]:focus {
   border-color: #3498db;
+  box-shadow: 0 0 5px rgba(52, 152, 219, 0.5);
   outline: none;
 }
 
@@ -522,7 +545,7 @@ input[type="file"]:focus {
 
 /* Button Styles (Base) */
 button {
-  padding: 6px 12px;
+  padding: 10px 12px;
   border: none;
   border-radius: 4px;
   font-size: 11px;
@@ -530,7 +553,7 @@ button {
   cursor: pointer;
   transition: background 0.3s ease, transform 0.2s ease;
   width: 100%;
-  height: 32px;
+  height: 44px;
   line-height: 1;
   box-sizing: border-box;
 }
@@ -562,6 +585,19 @@ button:active {
 
 .standard-btn:active {
   transform: translateY(0);
+}
+
+.toggle-tracking-btn {
+  background: #f39c12;
+  color: #ffffff;
+}
+
+.toggle-tracking-btn:hover {
+  background: #e08e0b;
+}
+
+.toggle-tracking-btn.paused {
+  background: #e74c3c;
 }
 
 /* Desktop Styles */
@@ -667,19 +703,19 @@ button:active {
     margin: 20px 0;
     padding: 15px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-    align-items: center; /* Vertically align items */
+    align-items: center;
   }
 
   .pin-controls select,
   .pin-controls input[type="text"],
   .pin-controls input[type="file"] {
-    padding: 8px; /* Match button padding */
-    font-size: 14px; /* Smaller than 16px */
+    padding: 8px;
+    font-size: 14px;
     flex: 1;
     min-width: 150px;
-    height: 36px; /* Match button height */
-    margin: 0; /* Remove vertical margin */
-    line-height: 1; /* Consistent line height */
+    height: 36px;
+    margin: 0;
+    line-height: 1;
   }
 
   .pin-controls button {
@@ -691,12 +727,12 @@ button:active {
   }
 
   .pin-controls #alert-counter {
-    font-size: 14px; /* Smaller than 16px */
+    font-size: 14px;
     padding: 8px 12px;
-    height: 36px; /* Match button height */
-    line-height: 1; /* Consistent line height */
+    height: 36px;
+    line-height: 1;
     margin-left: 10px;
-    border-radius: 20px; /* Keep rounded look */
+    border-radius: 20px;
   }
 
   .weather-alerts {
@@ -1122,6 +1158,27 @@ button:active {
     min-width: 80px;
     height: 28px;
   }
+
+  #messages-btn {
+    position: relative;
+  }
+
+  #messages-btn::after {
+    content: attr(data-unread);
+    display: none;
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background: #e74c3c;
+    color: #fff;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 50%;
+  }
+
+  #messages-btn[data-unread]:not([data-unread="0"])::after {
+    display: block;
+  }
 }
 
 /* Shared Button Styles */
@@ -1170,7 +1227,7 @@ button:active {
 .close-btn { background-color: #95a5a6; }
 .close-btn:hover { background-color: #7f8c8d; }
 
-/* Rest of the styles (unchanged for brevity) */
+/* Rest of the styles (unchanged) */
 .profile-container,
 .profile-view-container {
   width: 100%;
@@ -1221,6 +1278,7 @@ button:active {
 
 .profile-container select:focus {
   border-color: #3498db;
+  box-shadow: 0 0 5px rgba(52, 152, 219, 0.5);
   outline: none;
 }
 
@@ -1659,4 +1717,26 @@ button:active {
   padding: 5px;
   border: 1px solid #ddd;
   border-radius: 4px;
+}
+
+/* Mobile-Specific Tweaks */
+@media (max-width: 768px) {
+  .map-chat-container {
+    position: relative;
+    min-height: calc(100vh - 150px);
+  }
+  #chat-container {
+    position: sticky;
+    bottom: 0;
+    width: 100%;
+    background: #ffffff;
+    z-index: 10;
+  }
+  .pin-controls #alert-counter {
+    position: fixed;
+    bottom: 10px;
+    right: 10px;
+    z-index: 15;
+    padding: 6px 10px;
+  }
 }
