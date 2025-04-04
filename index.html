@@ -33,8 +33,9 @@
                 <a href="https://forecast.weather.gov/MapClick.php?lat=33.0801&lon=-83.2321" target="_blank" id="weather-link">Full Weather Report</a>
             </div>
             <div class="controls">
-                <input type="text" id="address-search" placeholder="Search by address">
+                <input type="text" id="address-search" placeholder="Enter destination">
                 <button onclick="searchAddress()">Search</button>
+                <button onclick="startNavigation()" class="standard-btn">Start Navigation</button>
                 <button onclick="editProfile()">Profile</button>
                 <button id="messages-btn" onclick="fetchMessages('inbox')">Messages</button>
                 <button onclick="signOut()">Sign Out</button>
@@ -132,7 +133,7 @@
         </div>
         <div id="admin-panel" style="display: none;"></div>
     </div>
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBBfsJsm_7LQbjuU5Y8CaphIBHBD3JCwSQ&libraries=places,marker&callback=initMap" defer></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBBfsJsm_7LQbjuU5Y8CaphIBHBD3JCwSQ&libraries=places,marker,geometry&callback=initMap" defer></script>
     <script src="/js/script.js"></script>
 </body>
 </html>
