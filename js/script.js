@@ -971,13 +971,19 @@ async function fetchPins() {
     let pins = await pinResponse.json();
     console.log('Raw fetched pins:', JSON.stringify(pins, null, 2));
 
-    // Fetch traffic cameras
-    const cameraResponse = await fetch('https://pinmap-website.onrender.com/traffic-cameras');
-    if (!cameraResponse.ok) {
-      throw new Error(`Failed to fetch traffic cameras: ${cameraResponse.statusText}`);
+    // Fetch traffic cameras (handle errors gracefully)
+    let trafficCameras = [];
+    try {
+      const cameraResponse = await fetch('https://pinmap-website.onrender.com/traffic-cameras');
+      if (cameraResponse.ok) {
+        trafficCameras = await cameraResponse.json();
+        console.log('Fetched traffic cameras:', JSON.stringify(trafficCameras, null, 2));
+      } else {
+        console.warn('Failed to fetch traffic cameras:', cameraResponse.statusText);
+      }
+    } catch (err) {
+      console.warn('Error fetching traffic cameras:', err);
     }
-    const trafficCameras = await cameraResponse.json();
-    console.log('Fetched traffic cameras:', JSON.stringify(trafficCameras, null, 2));
 
     // Format traffic cameras to match pin structure
     const formattedCameras = trafficCameras.map(cam => ({
