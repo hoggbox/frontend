@@ -1739,4 +1739,53 @@ button:active {
     z-index: 15;
     padding: 6px 10px;
   }
+/* Message Tabs */
+.message-tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.message-tabs button {
+  background: #3498db; /* Bright blue */
+  color: #ffffff;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  transition: background 0.3s ease;
+}
+
+.message-tabs button:hover {
+  background: #2980b9;
+}
+
+.message-tabs button.active {
+  background: #2ecc71; /* Bright green for active */
+}
+
+.message-tabs button.active:hover {
+  background: #27ae60;
+}
+
+/* Message Controls */
+.message-controls {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.message-controls .reply-btn {
+  background: #1abc9c;
+}
+
+.message-controls .reply-btn:hover {
+  background: #16a085;
+}
+
+.message-controls .delete-btn {
+  background: #e74c3c;
+}
+
+.message-controls .delete-btn:hover {
+  background: #c0392b;
 }
