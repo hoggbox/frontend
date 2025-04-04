@@ -865,12 +865,12 @@ function closeMediaView() {
 }
 
 async function fetchPins() {
-  console.log('fetchPins() started'); // Debug: Function entry
+  console.log('fetchPins() started');
   try {
     const response = await fetch('https://pinmap-website.onrender.com/pins', {
       headers: { 'Authorization': `Bearer ${token}` },
     });
-    console.log('Fetch response status:', response.status); // Debug: Response status
+    console.log('Fetch response status:', response.status);
     if (response.status === 401) {
       signOut();
       return alert('Session expired. Please log in again.');
@@ -878,8 +878,15 @@ async function fetchPins() {
     if (!response.ok) {
       throw new Error(`Failed to fetch pins: ${response.statusText}`);
     }
-    const pins = await response.json();
-    console.log('Fetched pins:', JSON.stringify(pins, null, 2)); // Debug: Full pin data
+    let pins = await response.json();
+    console.log('Raw fetched pins:', JSON.stringify(pins, null, 2));
+
+    // Fallback: If pinType is undefined, assume alert unless explicitly business
+    pins = pins.map(pin => ({
+      ...pin,
+      pinType: pin.pinType === undefined ? 'alert' : pin.pinType
+    }));
+
     const filteredPins = applyFilter(pins);
     document.getElementById('alert-counter').textContent = `Current Alerts: ${pins.length}`;
 
@@ -918,72 +925,86 @@ async function fetchPins() {
     const start = (currentPage - 1) * pinsPerPage;
     const end = start + pinsPerPage;
     const paginatedPins = filteredPins.slice(start, end);
-    console.log('Paginated pins count:', paginatedPins.length); // Debug: Pagination check
+    console.log('Paginated pins count:', paginatedPins.length);
 
     if (paginatedPins.length === 0) {
       console.warn('No pins to display after filtering/pagination');
-      tableBody.innerHTML = '<tr><td colspan="8">No pins available</td></tr>';
-    } else {
-      paginatedPins.forEach(pin => {
-        if (!markers[pin._id]) {
-          const desc = pin.description.toLowerCase();
-          let icon;
-          if (desc.includes('cop') || desc.includes('police')) {
-            icon = { url: 'https://img.icons8.com/?size=100&id=fHTZqkybfaA7&format=png&color=000000', scaledSize: new google.maps.Size(32, 32) };
-          } else if (pin.pinType === 'business') {
-            icon = { url: 'https://img.icons8.com/?size=100&id=8312&format=png&color=FFD700', scaledSize: new google.maps.Size(32, 32) };
-          } else {
-            icon = 'http://maps.google.com/mapfiles/ms/icons/red-dot.png';
-          }
-          markers[pin._id] = new google.maps.Marker({
-            position: { lat: pin.latitude, lng: pin.longitude },
-            map: map,
-            title: pin.description,
-            icon: icon
-          });
-        }
-
-        const isOwnPin = pin.userId._id === userId;
-        const canRemove = isAdmin || isOwnPin;
-        const isAlertPin = pin.pinType === 'alert';
-
-        console.log(`Pin ID: ${pin._id}, Type: ${pin.pinType}, IsAlert: ${isAlertPin}, CanRemove: ${canRemove}, Verifications: ${pin.verifications.length}, Votes: ${pin.voteCount}`); // Debug: Pin details
-
-        const row = document.createElement('tr');
-        row.innerHTML = `
-          <td data-label="Description">${pin.description}</td>
-          <td data-label="Latitude">${pin.latitude.toFixed(4)}</td>
-          <td data-label="Longitude">${pin.longitude.toFixed(4)}</td>
-          <td data-label="Posted By">
-            <span onclick="viewProfile('${pin.userId._id}')" style="cursor: pointer; color: #3498db;">
-              ${pin.username || pin.userEmail}
-              <img src="https://img.icons8.com/small/16/visible.png" class="profile-view-icon">
-            </span>
-          </td>
-          <td data-label="Timestamp (ET)">${new Date(pin.createdAt).toLocaleString()}</td>
-          <td data-label="Expires">${pin.expiresAt ? new Date(pin.expiresAt).toLocaleString() : 'Permanent'}</td>
-          <td data-label="Media">
-            ${pin.media ? `
-              <img src="https://img.icons8.com/small/20/image.png" class="media-view-icon" onclick="viewMedia('${pin.media}')">
-            ` : 'N/A'}
-          </td>
-          <td data-label="Actions">
-            <div class="action-buttons">
-              <button class="standard-btn goto-btn" onclick="goToPinLocation(${pin.latitude}, ${pin.longitude})">Go To</button>
-              <button class="standard-btn remove-btn" onclick="${canRemove ? `removePin('${pin._id}')` : `alert('You can only remove your own pins unless you are an admin')`}" ${!canRemove ? 'disabled' : ''}>Remove</button>
-              ${isAlertPin ? `
-                <button class="standard-btn extend-btn" onclick="${canRemove ? `extendPin('${pin._id}')` : `alert('Only the pin owner or admin can extend')`}" ${!canRemove ? 'disabled' : ''}>Extend</button>
-                <button class="standard-btn verify-btn" onclick="verifyPin('${pin._id}')">Verify (${pin.verifications.length})</button>
-                <button class="standard-btn vote-btn" onclick="voteToRemove('${pin._id}')">Vote (${pin.voteCount}/8)</button>
-              ` : ''}
-              <button class="standard-btn comment-btn" onclick="showComments('${pin._id}')">Comments (${pin.comments.length})</button>
-            </div>
-          </td>
-        `;
-        console.log(`Rendered row for pin ${pin._id} with actions: ${row.querySelector('.action-buttons').innerHTML}`); // Debug: Confirm buttons
-        tableBody.appendChild(row);
-      });
+      // Add a dummy alert pin for testing
+      const dummyPin = {
+        _id: 'dummy-pin',
+        description: 'Test Alert Pin',
+        latitude: 33.0801,
+        longitude: -83.2321,
+        createdAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
+        userId: { _id: userId, username: username || 'TestUser' },
+        pinType: 'alert',
+        verifications: [],
+        voteCount: 0,
+        comments: []
+      };
+      paginatedPins.push(dummyPin);
     }
+
+    paginatedPins.forEach(pin => {
+      if (!markers[pin._id]) {
+        const desc = pin.description.toLowerCase();
+        let icon;
+        if (desc.includes('cop') || desc.includes('police')) {
+          icon = { url: 'https://img.icons8.com/?size=100&id=fHTZqkybfaA7&format=png&color=000000', scaledSize: new google.maps.Size(32, 32) };
+        } else if (pin.pinType === 'business') {
+          icon = { url: 'https://img.icons8.com/?size=100&id=8312&format=png&color=FFD700', scaledSize: new google.maps.Size(32, 32) };
+        } else {
+          icon = 'http://maps.google.com/mapfiles/ms/icons/red-dot.png';
+        }
+        markers[pin._id] = new google.maps.Marker({
+          position: { lat: pin.latitude, lng: pin.longitude },
+          map: map,
+          title: pin.description,
+          icon: icon
+        });
+      }
+
+      const isOwnPin = pin.userId._id === userId;
+      const canRemove = isAdmin || isOwnPin;
+      const isAlertPin = pin.pinType === 'alert';
+
+      console.log(`Pin ID: ${pin._id}, Type: ${pin.pinType}, IsAlert: ${isAlertPin}, CanRemove: ${canRemove}, Verifications: ${pin.verifications.length}, Votes: ${pin.voteCount}`);
+
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td data-label="Description">${pin.description}</td>
+        <td data-label="Latitude">${pin.latitude.toFixed(4)}</td>
+        <td data-label="Longitude">${pin.longitude.toFixed(4)}</td>
+        <td data-label="Posted By">
+          <span onclick="viewProfile('${pin.userId._id}')" style="cursor: pointer; color: #3498db;">
+            ${pin.username || pin.userEmail}
+            <img src="https://img.icons8.com/small/16/visible.png" class="profile-view-icon">
+          </span>
+        </td>
+        <td data-label="Timestamp (ET)">${new Date(pin.createdAt).toLocaleString()}</td>
+        <td data-label="Expires">${pin.expiresAt ? new Date(pin.expiresAt).toLocaleString() : 'Permanent'}</td>
+        <td data-label="Media">
+          ${pin.media ? `
+            <img src="https://img.icons8.com/small/20/image.png" class="media-view-icon" onclick="viewMedia('${pin.media}')">
+          ` : 'N/A'}
+        </td>
+        <td data-label="Actions">
+          <div class="action-buttons">
+            <button class="standard-btn goto-btn" onclick="goToPinLocation(${pin.latitude}, ${pin.longitude})">Go To</button>
+            <button class="standard-btn remove-btn" onclick="${canRemove ? `removePin('${pin._id}')` : `alert('You can only remove your own pins unless you are an admin')`}" ${!canRemove ? 'disabled' : ''}>Remove</button>
+            ${isAlertPin ? `
+              <button class="standard-btn extend-btn" onclick="${canRemove ? `extendPin('${pin._id}')` : `alert('Only the pin owner or admin can extend')`}" ${!canRemove ? 'disabled' : ''}>Extend</button>
+              <button class="standard-btn verify-btn" onclick="verifyPin('${pin._id}')">Verify (${pin.verifications.length})</button>
+              <button class="standard-btn vote-btn" onclick="voteToRemove('${pin._id}')">Vote (${pin.voteCount}/8)</button>
+            ` : ''}
+            <button class="standard-btn comment-btn" onclick="showComments('${pin._id}')">Comments (${pin.comments.length})</button>
+          </div>
+        </td>
+      `;
+      console.log(`Rendered row for pin ${pin._id} with actions: ${row.querySelector('.action-buttons').innerHTML}`);
+      tableBody.appendChild(row);
+    });
 
     const totalPages = Math.ceil(filteredPins.length / pinsPerPage);
     currentPage = Math.min(currentPage, totalPages || 1);
@@ -1302,5 +1323,5 @@ document.addEventListener('DOMContentLoaded', () => {
   if (loginBtn) {
     loginBtn.addEventListener('click', login);
   }
-  fetchPins(); // Force pin fetch on load
+  fetchPins();
 });
