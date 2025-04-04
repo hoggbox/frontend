@@ -157,6 +157,7 @@ header h1 {
   display: flex;
   gap: 6px;
   margin-top: 6px;
+  align-items: center; /* Align items vertically */
 }
 
 #chat-input {
@@ -166,6 +167,8 @@ header h1 {
   border-radius: 4px;
   font-size: 11px;
   background: #f9f9f9;
+  height: 28px; /* Match button height */
+  box-sizing: border-box; /* Ensure padding doesn't affect height */
 }
 
 #chat-input:focus {
@@ -177,6 +180,12 @@ header h1 {
 #chat-input-container button {
   background: #2ecc71;
   color: #ffffff;
+  padding: 0; /* Remove padding to control height */
+  height: 28px; /* Match input height */
+  line-height: 28px; /* Center text vertically */
+  font-size: 11px;
+  min-width: 60px; /* Ensure button isn't too narrow */
+  border-radius: 4px;
 }
 
 #chat-input-container button:hover {
@@ -686,6 +695,15 @@ button:active {
   #chat-input {
     padding: 10px;
     font-size: 14px;
+    height: 36px; /* Adjusted for desktop */
+  }
+
+  #chat-input-container button {
+    padding: 0;
+    height: 36px; /* Adjusted for desktop */
+    line-height: 36px;
+    font-size: 14px;
+    min-width: 80px;
   }
 
   .controls {
@@ -1739,6 +1757,8 @@ button:active {
     z-index: 15;
     padding: 6px 10px;
   }
+}
+
 /* Message Tabs */
 .message-tabs {
   display: flex;
