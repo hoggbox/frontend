@@ -918,7 +918,7 @@ async function fetchPins() {
         if (desc.includes('cop') || desc.includes('police')) {
           icon = { url: 'https://img.icons8.com/?size=100&id=fHTZqkybfaA7&format=png&color=000000', scaledSize: new google.maps.Size(32, 32) };
         } else if (pin.pinType === 'business') {
-          icon = { url: 'https://img.icons8.com/?size=100&id=8312&format=png&color=FFD700', scaledSize: new google.maps.Size(32, 32) }; // Gold star for biz
+          icon = { url: 'https://img.icons8.com/?size=100&id=8312&format=png&color=FFD700', scaledSize: new google.maps.Size(32, 32) };
         } else {
           icon = 'http://maps.google.com/mapfiles/ms/icons/red-dot.png';
         }
@@ -930,6 +930,8 @@ async function fetchPins() {
         });
       }
 
+      const isOwnPin = pin.userId._id === userId;
+      const canRemove = isAdmin || isOwnPin;
       const row = document.createElement('tr');
       row.innerHTML = `
         <td data-label="Description">${pin.description}</td>
@@ -951,9 +953,9 @@ async function fetchPins() {
         <td data-label="Actions">
           <div class="action-buttons">
             <button class="standard-btn goto-btn" onclick="goToPinLocation(${pin.latitude}, ${pin.longitude})">Go To</button>
-            <button class="standard-btn remove-btn" onclick="removePin('${pin._id}')">Remove</button>
+            <button class="standard-btn remove-btn" onclick="${canRemove ? `removePin('${pin._id}')` : `alert('You can only remove your own pins unless you are an admin')`}" ${!canRemove ? 'disabled' : ''}>Remove</button>
             ${pin.pinType === 'alert' ? `
-              <button class="standard-btn extend-btn" onclick="extendPin('${pin._id}')">Extend</button>
+              <button class="standard-btn extend-btn" onclick="${isAdmin || isOwnPin ? `extendPin('${pin._id}')` : `alert('Only the pin owner or admin can extend')`}" ${!(isAdmin || isOwnPin) ? 'disabled' : ''}>Extend</button>
               <button class="standard-btn verify-btn" onclick="verifyPin('${pin._id}')">Verify (${pin.verifications.length})</button>
               <button class="standard-btn vote-btn" onclick="voteToRemove('${pin._id}')">Vote (${pin.voteCount}/8)</button>
             ` : ''}
@@ -1168,9 +1170,10 @@ async function sendPrivateMessage() {
   }
 }
 
-async function fetchMessages() {
+async function fetchMessages(type = 'inbox') {
   try {
-    const response = await fetch('https://pinmap-website.onrender.com/auth/messages/inbox', {
+    const endpoint = type === 'inbox' ? 'inbox' : 'outbox';
+    const response = await fetch(`https://pinmap-website.onrender.com/auth/messages/${endpoint}`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     if (response.ok) {
@@ -1180,21 +1183,75 @@ async function fetchMessages() {
       messages.forEach(msg => {
         const msgDiv = document.createElement('div');
         msgDiv.className = `message ${msg.read ? '' : 'unread'}`;
+        const sender = type === 'inbox' ? (msg.senderId.username || msg.senderId.email) : 'You';
+        const recipient = type === 'outbox' ? (msg.recipientId.username || msg.recipientId.email) : 'You';
         msgDiv.innerHTML = `
-          <p><strong>${msg.senderId.username || msg.senderId.email}</strong> (${new Date(msg.timestamp).toLocaleString()}):</p>
+          <p><strong>${sender}</strong> to <strong>${recipient}</strong> (${new Date(msg.timestamp).toLocaleString()}):</p>
           <p>${msg.content}</p>
+          <div class="message-controls">
+            ${type === 'inbox' ? `
+              <button class="standard-btn reply-btn" onclick="replyToMessage('${msg.senderId._id}', '${msg.content}')">Reply</button>
+              <button class="standard-btn delete-btn" onclick="deleteMessage('${msg._id}')">Delete</button>
+            ` : ''}
+          </div>
         `;
         messagesList.appendChild(msgDiv);
       });
       document.getElementById('map-container').style.display = 'none';
       document.getElementById('messages-container').style.display = 'block';
+      document.getElementById('inbox-btn').classList.toggle('active', type === 'inbox');
+      document.getElementById('outbox-btn').classList.toggle('active', type === 'outbox');
     } else {
       const errorData = await response.json();
-      alert(`Failed to fetch messages: ${errorData.message || 'Unknown error'}`);
+      alert(`Failed to fetch ${type}: ${errorData.message || 'Unknown error'}`);
     }
   } catch (err) {
-    console.error('Fetch messages error:', err);
-    alert('Error fetching messages');
+    console.error(`Fetch ${type} error:`, err);
+    alert(`Error fetching ${type}`);
+  }
+}
+
+async function replyToMessage(recipientId, originalMessage) {
+  const reply = prompt('Enter your reply:', `Re: ${originalMessage.slice(0, 20)}...`);
+  if (!reply) return;
+  try {
+    const response = await fetch(`https://pinmap-website.onrender.com/auth/message/${recipientId}`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: reply })
+    });
+    if (response.ok) {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'privateMessage', senderId: userId, recipientId, content: reply }));
+      }
+      alert('Reply sent');
+      fetchMessages('inbox');
+    } else {
+      const errorData = await response.json();
+      alert(`Failed to send reply: ${errorData.message || 'Unknown error'}`);
+    }
+  } catch (err) {
+    console.error('Reply error:', err);
+    alert('Error sending reply');
+  }
+}
+
+async function deleteMessage(messageId) {
+  if (!confirm('Are you sure you want to delete this message?')) return;
+  try {
+    const response = await fetch(`https://pinmap-website.onrender.com/auth/messages/${messageId}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (response.ok) {
+      fetchMessages('inbox');
+    } else {
+      const errorData = await response.json();
+      alert(`Failed to delete message: ${errorData.message || 'Unknown error'}`);
+    }
+  } catch (err) {
+    console.error('Delete message error:', err);
+    alert('Error deleting message');
   }
 }
 
