@@ -90,6 +90,8 @@ function initMap() {
       checkNewMessages();
       subscribeToPush();
       document.getElementById('admin-btn').style.display = isAdmin ? 'inline-block' : 'none';
+      const bizOption = document.querySelector('#pin-type option[value="business"]');
+      if (bizOption) bizOption.style.display = isAdmin ? 'block' : 'none';
     } catch (err) {
       console.error('Invalid token:', err);
       signOut();
@@ -533,6 +535,7 @@ async function addPin() {
     formData.append('latitude', currentLatLng.lat);
     formData.append('longitude', currentLatLng.lng);
     formData.append('description', description);
+    formData.append('pinType', pinType); // Pass pinType to backend
     if (mediaFile) formData.append('media', mediaFile);
 
     const postResponse = await fetch('https://pinmap-website.onrender.com/pins', {
@@ -911,9 +914,14 @@ async function fetchPins() {
     paginatedPins.forEach(pin => {
       if (!markers[pin._id]) {
         const desc = pin.description.toLowerCase();
-        const icon = desc.includes('cop') || desc.includes('police') ? 
-          { url: 'https://img.icons8.com/?size=100&id=fHTZqkybfaA7&format=png&color=000000', scaledSize: new google.maps.Size(32, 32) } :
-          'http://maps.google.com/mapfiles/ms/icons/red-dot.png';
+        let icon;
+        if (desc.includes('cop') || desc.includes('police')) {
+          icon = { url: 'https://img.icons8.com/?size=100&id=fHTZqkybfaA7&format=png&color=000000', scaledSize: new google.maps.Size(32, 32) };
+        } else if (pin.pinType === 'business') {
+          icon = { url: 'https://img.icons8.com/?size=100&id=8312&format=png&color=FFD700', scaledSize: new google.maps.Size(32, 32) }; // Gold star for biz
+        } else {
+          icon = 'http://maps.google.com/mapfiles/ms/icons/red-dot.png';
+        }
         markers[pin._id] = new google.maps.Marker({
           position: { lat: pin.latitude, lng: pin.longitude },
           map: map,
@@ -934,7 +942,7 @@ async function fetchPins() {
           </span>
         </td>
         <td data-label="Timestamp (ET)">${new Date(pin.createdAt).toLocaleString()}</td>
-        <td data-label="Expires">${new Date(pin.expiresAt).toLocaleString()}</td>
+        <td data-label="Expires">${pin.expiresAt ? new Date(pin.expiresAt).toLocaleString() : 'Permanent'}</td>
         <td data-label="Media">
           ${pin.media ? `
             <img src="https://img.icons8.com/small/20/image.png" class="media-view-icon" onclick="viewMedia('${pin.media}')">
@@ -944,9 +952,11 @@ async function fetchPins() {
           <div class="action-buttons">
             <button class="standard-btn goto-btn" onclick="goToPinLocation(${pin.latitude}, ${pin.longitude})">Go To</button>
             <button class="standard-btn remove-btn" onclick="removePin('${pin._id}')">Remove</button>
-            <button class="standard-btn extend-btn" onclick="extendPin('${pin._id}')">Extend</button>
-            <button class="standard-btn verify-btn" onclick="verifyPin('${pin._id}')">Verify (${pin.verifications.length})</button>
-            <button class="standard-btn vote-btn" onclick="voteToRemove('${pin._id}')">Vote (${pin.voteCount}/8)</button>
+            ${pin.pinType === 'alert' ? `
+              <button class="standard-btn extend-btn" onclick="extendPin('${pin._id}')">Extend</button>
+              <button class="standard-btn verify-btn" onclick="verifyPin('${pin._id}')">Verify (${pin.verifications.length})</button>
+              <button class="standard-btn vote-btn" onclick="voteToRemove('${pin._id}')">Vote (${pin.voteCount}/8)</button>
+            ` : ''}
             <button class="standard-btn comment-btn" onclick="showComments('${pin._id}')">Comments (${pin.comments.length})</button>
           </div>
         </td>
