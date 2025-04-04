@@ -1739,4 +1739,57 @@ button:active {
     z-index: 15;
     padding: 6px 10px;
   }
+/* Message Tabs */
+.message-tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+#inbox-btn, #outbox-btn {
+  background: #3498db !important;
+  color: #ffffff !important;
+  padding: 6px 12px !important;
+  border-radius: 4px !important;
+  font-size: 12px !important;
+  transition: background 0.3s ease !important;
+}
+
+#inbox-btn:hover, #outbox-btn:hover {
+  background: #2980b9 !important;
+}
+
+#inbox-btn.active {
+  background: #2ecc71 !important;
+}
+
+#outbox-btn.active {
+  background: #2ecc71 !important;
+}
+
+#inbox-btn.active:hover, #outbox-btn.active:hover {
+  background: #27ae60 !important;
+}
+
+/* Message Controls */
+.message-controls {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.message-controls .reply-btn {
+  background: #1abc9c !important;
+}
+
+.message-controls .reply-btn:hover {
+  background: #16a085 !important;
+}
+
+.message-controls .delete-btn {
+  background: #e74c3c !important;
+}
+
+.message-controls .delete-btn:hover {
+  background: #c0392b !important;
 }
