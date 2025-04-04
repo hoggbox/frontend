@@ -18,6 +18,7 @@ let currentProfileUserId;
 let ws;
 let username;
 let map;
+let trackingPaused = false;
 
 function getDistance(lat1, lon1, lat2, lon2) {
   const R = 6371000;
@@ -168,7 +169,7 @@ function setupWebSocket() {
     } else if (data.type === 'allLocations' && isAdmin) {
       console.log('Admin received allLocations:', data.locations);
       data.locations.forEach(({ userId: uid, email, latitude, longitude }) => {
-        if (uid !== userId) { // Skip self for admin—handled by updateUserLocation
+        if (uid !== userId) {
           const pos = { lat: latitude, lng: longitude };
           if (!markers[uid]) {
             markers[uid] = {
@@ -295,12 +296,12 @@ function startMap() {
 }
 
 function startLocationTracking() {
-  if (navigator.geolocation) {
+  if (navigator.geolocation && !trackingPaused) {
     watchId = navigator.geolocation.watchPosition(
       (position) => {
         console.log('New position:', position.coords.latitude, position.coords.longitude);
         const userLocation = { lat: position.coords.latitude, lng: position.coords.longitude };
-        updateUserLocation(userLocation.lat, userLocation.lng); // Always update for logged-in user
+        updateUserLocation(userLocation.lat, userLocation.lng);
         if (ws.readyState === WebSocket.OPEN) {
           const payload = JSON.parse(atob(token.split('.')[1]));
           ws.send(JSON.stringify({
@@ -332,6 +333,19 @@ function startLocationTracking() {
       },
       { enableHighAccuracy: true, timeout: 1000, maximumAge: 0 }
     );
+  }
+}
+
+function toggleTracking() {
+  trackingPaused = !trackingPaused;
+  const btn = document.getElementById('toggle-tracking-btn');
+  btn.textContent = `Tracking: ${trackingPaused ? 'Off' : 'On'}`;
+  btn.classList.toggle('paused', trackingPaused);
+  if (trackingPaused && watchId) {
+    navigator.geolocation.clearWatch(watchId);
+    watchId = undefined;
+  } else if (!trackingPaused) {
+    startLocationTracking();
   }
 }
 
@@ -505,7 +519,8 @@ async function addPin() {
     const pins = await response.json();
     const tooClose = pins.some(pin => getDistance(currentLatLng.lat, currentLatLng.lng, pin.latitude, pin.longitude) < 304.8);
     if (tooClose) {
-      alert('Alert cannot be within 1000 feet of an existing alert.');
+      const closestPin = pins.find(pin => getDistance(currentLatLng.lat, currentLatLng.lng, pin.latitude, pin.longitude) < 304.8);
+      alert(`Alert too close to existing pin at (${closestPin.latitude.toFixed(4)}, ${closestPin.longitude.toFixed(4)})`);
       currentLatLng = null;
       return;
     }
@@ -721,7 +736,6 @@ async function dislikeComment(commentId) {
     alert('Error disliking comment');
   }
 }
-
 function closeComments() {
   const commentModal = document.querySelector('.comment-modal');
   if (commentModal) commentModal.remove();
@@ -1185,6 +1199,7 @@ async function checkNewMessages() {
       const messagesBtn = document.getElementById('messages-btn');
       if (messagesBtn) {
         messagesBtn.textContent = `Messages${unreadCount > 0 ? ` (${unreadCount})` : ''}`;
+        messagesBtn.setAttribute('data-unread', unreadCount);
       }
     }
   } catch (err) {
