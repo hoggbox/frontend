@@ -39,6 +39,7 @@
                 <button id="messages-btn" onclick="fetchMessages()">Messages</button>
                 <button onclick="signOut()">Sign Out</button>
                 <button id="admin-btn" onclick="showAdminPanel()" style="display: none;">Admin Panel</button>
+                <button id="toggle-tracking-btn" class="toggle-tracking-btn" onclick="toggleTracking()">Tracking: On</button>
             </div>
             <div class="map-chat-container">
                 <div id="map"></div>
@@ -59,6 +60,7 @@
                     <option value="fire">Fire</option>
                     <option value="roadblock">Roadblock</option>
                     <option value="wreck">Wreck/Crash</option>
+                    <option value="business">Business (Admin)</option>
                 </select>
                 <input type="text" id="description" placeholder="Alert Description" maxlength="100">
                 <input type="file" id="media-upload" accept="image/*,video/mp4,video/webm">
