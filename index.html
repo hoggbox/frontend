@@ -36,7 +36,7 @@
                 <input type="text" id="address-search" placeholder="Search by address">
                 <button onclick="searchAddress()">Search</button>
                 <button onclick="editProfile()">Profile</button>
-                <button id="messages-btn" onclick="fetchMessages()">Messages</button>
+                <button id="messages-btn" onclick="fetchMessages('inbox')">Messages</button>
                 <button onclick="signOut()">Sign Out</button>
                 <button id="admin-btn" onclick="showAdminPanel()" style="display: none;">Admin Panel</button>
                 <button id="toggle-tracking-btn" class="toggle-tracking-btn" onclick="toggleTracking()">Tracking: On</button>
@@ -123,6 +123,10 @@
         </div>
         <div id="messages-container" class="messages-container" style="display: none;">
             <h3>Private Messages</h3>
+            <div class="message-tabs">
+                <button id="inbox-btn" class="standard-btn" onclick="fetchMessages('inbox')">Inbox</button>
+                <button id="outbox-btn" class="standard-btn" onclick="fetchMessages('outbox')">Outbox</button>
+            </div>
             <div id="messages-list"></div>
             <button onclick="showMap()">Back to Map</button>
         </div>
