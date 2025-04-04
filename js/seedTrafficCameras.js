@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 const TrafficCamera = require('../models/trafficCamera');
 
-mongoose.connect('YOUR_MONGO_URI', { useNewUrlParser: true, useUnifiedTopology: true });
+mongoose.connect('mongodb+srv://imhoggbox:snake1988@cluster0.xoo6m.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0', { useNewUrlParser: true, useUnifiedTopology: true });
 
 const cameras = [
   {
