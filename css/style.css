@@ -196,7 +196,7 @@ header h1 {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  margin-bottom: 10px;
+  margin-bottom: 5px; /* Reduced margin */
   padding: 8px;
   background: #ffffff;
   border-radius: 8px;
@@ -277,7 +277,7 @@ header h1 {
   padding: 8px;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  margin: 10px 0;
+  margin: 5px 0; /* Reduced margin */
   width: 100%;
   text-align: center;
 }
@@ -297,7 +297,7 @@ header h1 {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  margin: 10px 0;
+  margin: 5px 0; /* Reduced margin */
   padding: 8px;
   background: #ffffff;
   border-radius: 8px;
@@ -341,7 +341,7 @@ header h1 {
 }
 
 #pin-list {
-  margin-top: 10px;
+  margin-top: 5px; /* Reduced margin */
   width: 100%;
   overflow-x: auto;
 }
@@ -563,6 +563,10 @@ header h1 {
 
 .tools-modal-content button {
   width: 100%;
+  padding: 8px;
+  font-size: 12px;
+  border-radius: 4px;
+  transition: background 0.3s ease;
 }
 
 .pagination-container {
@@ -837,7 +841,7 @@ button:active {
   .controls {
     flex-direction: row;
     gap: 10px;
-    margin-bottom: 20px;
+    margin-bottom: 10px; /* Adjusted for desktop */
     padding: 15px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
     align-items: center;
@@ -851,10 +855,52 @@ button:active {
   }
 
   .desktop-controls button {
-    width: auto;
-    padding: 8px 16px;
-    height: 36px;
-    font-size: 14px;
+    width: 120px; /* Fixed width for uniformity */
+    height: 40px; /* Increased height for better appearance */
+    padding: 0; /* Remove padding to control size via width/height */
+    font-size: 16px; /* Larger font for better readability */
+    font-weight: 600;
+    line-height: 40px; /* Center text vertically */
+    text-align: center;
+    border-radius: 6px; /* Slightly larger border-radius for smoother look */
+    transition: background 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2); /* Add subtle shadow for depth */
+  }
+
+  .desktop-controls button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3); /* Enhanced shadow on hover */
+  }
+
+  .desktop-controls button:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2); /* Reduced shadow on click */
+  }
+
+  /* Different colors for each button */
+  .desktop-controls button:nth-child(1) { /* Profile */
+    background: #3498db;
+  }
+  .desktop-controls button:nth-child(1):hover {
+    background: #2980b9;
+  }
+  .desktop-controls button:nth-child(2) { /* Messages */
+    background: #2ecc71;
+  }
+  .desktop-controls button:nth-child(2):hover {
+    background: #27ae60;
+  }
+  .desktop-controls button:nth-child(3) { /* Sign Out */
+    background: #e74c3c;
+  }
+  .desktop-controls button:nth-child(3):hover {
+    background: #c0392b;
+  }
+  .desktop-controls button:nth-child(4) { /* Admin Panel */
+    background: #9b59b6;
+  }
+  .desktop-controls button:nth-child(4):hover {
+    background: #8e44ad;
   }
 
   .mobile-controls {
@@ -862,7 +908,7 @@ button:active {
   }
 
   .gps-info {
-    margin: 20px 0;
+    margin: 10px 0; /* Adjusted for desktop */
     padding: 15px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
   }
@@ -875,7 +921,7 @@ button:active {
   .pin-controls {
     flex-direction: row;
     gap: 10px;
-    margin: 20px 0;
+    margin: 10px 0; /* Adjusted for desktop */
     padding: 15px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
     align-items: center;
@@ -1011,7 +1057,7 @@ button:active {
     gap: 6px;
   }
 
-  .pin-table .more-tools-btn {
+  .pin-table .action-btn {
     display: none;
   }
 
@@ -1366,6 +1412,7 @@ button:active {
   .map-chat-container {
     position: relative;
     min-height: calc(100vh - 150px);
+    gap: 5px; /* Reduced gap between map and pin table */
   }
 
   .desktop-chat {
@@ -1380,13 +1427,26 @@ button:active {
     padding: 6px 10px;
   }
 
+  #pin-list {
+    margin-top: 5px; /* Reduced margin to tighten up the layout */
+  }
+
   /* Simplified Pin Table for Mobile */
+  .pin-table {
+    box-shadow: none; /* Remove shadow for cleaner look */
+  }
+
+  .pin-table::after {
+    display: none; /* Remove the empty gradient box on the right */
+  }
+
   .pin-table thead {
     display: none;
   }
 
   .pin-table tr {
-    display: block;
+    display: flex;
+    flex-direction: column;
     margin-bottom: 8px;
     border: 1px solid #ddd;
     padding: 8px;
@@ -1395,7 +1455,7 @@ button:active {
   .pin-table td {
     display: block;
     text-align: left;
-    padding: 6px;
+    padding: 6px 0;
     border-bottom: none;
     max-width: 100%;
     white-space: normal;
@@ -1413,11 +1473,16 @@ button:active {
     display: none;
   }
 
+  .pin-table td[data-label="Actions"] {
+    display: block;
+    text-align: center;
+  }
+
   .pin-table .action-buttons {
     display: none;
   }
 
-  .pin-table .more-tools-btn {
+  .pin-table .action-btn {
     display: block;
     background: #3498db;
     color: #ffffff;
@@ -1426,10 +1491,28 @@ button:active {
     text-align: center;
     cursor: pointer;
     margin-top: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    transition: background 0.3s ease;
   }
 
-  .pin-table .more-tools-btn:hover {
+  .pin-table .action-btn:hover {
     background: #2980b9;
+  }
+
+  .tools-modal-content .action-buttons {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr); /* Two columns for buttons */
+    gap: 6px;
+    justify-items: center;
+  }
+
+  .tools-modal-content button {
+    width: 100%;
+    padding: 8px;
+    font-size: 12px;
+    border-radius: 4px;
+    transition: background 0.3s ease;
   }
 
   .desktop-controls {
