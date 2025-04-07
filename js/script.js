@@ -1221,7 +1221,7 @@ async function fetchPins() {
             ` : ''}
             <button class="standard-btn comment-btn" onclick="showComments('${pin._id}')">Comments (${pin.comments.length})</button>
           </div>
-          ${isMobile ? `<div class="more-tools-btn" onclick='showToolsModal(${JSON.stringify(pin)})'>More Tools</div>` : ''}
+          ${isMobile ? `<div class="action-btn" onclick='showToolsModal(${JSON.stringify(pin)})'>Actions</div>` : ''}
         </td>
       `;
       console.log(`Rendered row for pin ${pin._id} with actions: ${row.querySelector('.action-buttons').innerHTML}`);
@@ -1241,6 +1241,7 @@ async function fetchPins() {
     alert('Error fetching pins: ' + err.message);
   }
 }
+
 function changePage(delta) {
   currentPage += delta;
   fetchPins();
@@ -1482,7 +1483,7 @@ async function fetchMessages(type = 'inbox') {
     }
   } catch (err) {
     console.error(`Fetch ${type} error:`, err);
-    alert(`Error fetching ${type}`);
+    alert(`Error fetching ${type}: ${err.message}`);
   }
 }
 
