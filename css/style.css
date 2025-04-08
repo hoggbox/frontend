@@ -27,7 +27,7 @@ header {
   padding: 10px;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
   text-align: center;
-  margin-bottom: 5px; /* Reduced for mobile */
+  margin-bottom: 5px;
 }
 
 header h1 {
@@ -84,21 +84,60 @@ header h1 {
   width: 100%;
   display: flex;
   flex-direction: column;
+  position: relative; /* For positioning HUD */
 }
 
 .map-chat-container {
   display: flex;
   flex-direction: column;
-  gap: 0; /* No gap */
+  gap: 0;
   width: 100%;
 }
 
 #map {
   width: 100%;
-  height: calc(100vh - 200px); /* Adjusted height */
-  border-radius: 8px 8px 0 0; /* Rounded top corners, flat bottom */
+  height: calc(100vh - 200px);
+  border-radius: 8px 8px 0 0;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  margin-bottom: 0; /* Ensure no margin below map */
+  margin-bottom: 0;
+}
+
+/* GPS HUD Overlay */
+.gps-hud {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  background: rgba(0, 0, 0, 0.7);
+  color: #ffffff;
+  padding: 10px;
+  border-radius: 8px;
+  z-index: 10;
+  font-size: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.gps-hud p {
+  margin: 0;
+  font-weight: 600;
+}
+
+.gps-hud .speed {
+  font-size: 18px;
+  color: #1abc9c;
+}
+
+.gps-hud .destination {
+  font-size: 16px;
+  color: #3498db;
+}
+
+.gps-hud .eta,
+.gps-hud .distance {
+  font-size: 14px;
+  color: #ecf0f1;
 }
 
 #chat-container {
@@ -197,10 +236,10 @@ header h1 {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  margin: 0; /* No margin */
+  margin: 0;
   padding: 8px;
   background: #ffffff;
-  border-radius: 0; /* No border-radius to blend with map */
+  border-radius: 0;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   width: 100%;
 }
@@ -276,11 +315,12 @@ header h1 {
 .gps-info {
   background: #ffffff;
   padding: 8px;
-  border-radius: 0; /* No border-radius to blend with map */
+  border-radius: 0;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  margin: 0; /* No margin */
+  margin: 0;
   width: 100%;
   text-align: center;
+  display: none; /* Hidden on mobile since HUD takes over */
 }
 
 .gps-info p {
@@ -298,26 +338,32 @@ header h1 {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  margin: 0; /* No margin */
+  margin: 0;
   padding: 8px;
-  padding-top: 0; /* Explicitly remove top padding */
+  padding-top: 0;
   background: #ffffff;
-  border-radius: 0 0 8px 8px; /* Rounded bottom corners, flat top */
+  border-radius: 0 0 8px 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   width: 100%;
   position: relative;
+  display: none; /* Hidden by default, toggled by FAB */
+}
+
+.pin-controls.active {
+  display: flex;
 }
 
 .pin-controls select,
 .pin-controls input[type="text"],
 .pin-controls input[type="file"] {
-  padding: 6px;
+  padding: 8px;
   border: 1px solid #ddd;
   border-radius: 4px;
-  font-size: 12px;
+  font-size: 14px;
   background: #f9f9f9;
   transition: border-color 0.3s ease;
   width: 100%;
+  height: 40px;
 }
 
 .pin-controls select:focus,
@@ -330,6 +376,8 @@ header h1 {
 
 .pin-controls button {
   width: 100%;
+  height: 40px;
+  font-size: 14px;
 }
 
 .pin-controls #alert-counter {
@@ -340,51 +388,78 @@ header h1 {
   padding: 5px 8px;
   border-radius: 16px;
   text-align: center;
+  position: fixed;
+  bottom: 10px;
+  right: 10px;
+  z-index: 15;
+}
+
+/* Floating Action Button for Pin Controls */
+.fab-pin {
+  position: fixed;
+  bottom: 60px;
+  right: 10px;
+  background: #2ecc71;
+  color: #ffffff;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  z-index: 15;
+  font-size: 24px;
+  cursor: pointer;
+  transition: background 0.3s ease, transform 0.2s ease;
+}
+
+.fab-pin:hover {
+  background: #27ae60;
+  transform: scale(1.1);
+}
+
+/* Voice Navigation Toggle Button */
+.voice-toggle {
+  position: fixed;
+  bottom: 120px;
+  right: 10px;
+  background: #3498db;
+  color: #ffffff;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  z-index: 15;
+  font-size: 24px;
+  cursor: pointer;
+  transition: background 0.3s ease, transform 0.2s ease;
+}
+
+.voice-toggle:hover {
+  background: #2980b9;
+  transform: scale(1.1);
+}
+
+.voice-toggle.active {
+  background: #e74c3c;
+}
+
+.voice-toggle.active:hover {
+  background: #c0392b;
 }
 
 #pin-list {
-  margin: 0; /* No margin */
+  margin: 0;
   width: 100%;
   overflow-x: auto;
 }
 
 .weather-alerts {
-  margin: 0; /* No margin */
-  padding: 8px;
-  background: #ffffff;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  width: 100%;
-  max-width: 100%;
-  text-align: center;
-}
-
-.weather-alerts h3 {
-  font-size: 14px;
-  margin-bottom: 6px;
-  color: #2c3e50;
-}
-
-#weather-content {
-  font-size: 11px;
-  color: #34495e;
-}
-
-#weather-content.alert {
-  color: #e74c3c;
-  font-weight: bold;
-}
-
-#weather-link {
-  display: block;
-  margin-top: 6px;
-  font-size: 11px;
-  color: #3498db;
-  text-decoration: none;
-}
-
-#weather-link:hover {
-  text-decoration: underline;
+  display: none; /* Removed on mobile */
 }
 
 .admin-container {
@@ -758,7 +833,7 @@ button:active {
   }
 
   header {
-    margin-bottom: 15px; /* Restore for desktop */
+    margin-bottom: 15px;
   }
 
   .login-form {
@@ -795,9 +870,13 @@ button:active {
   #map {
     width: 75%;
     height: 600px;
-    border-radius: 8px; /* Restore full border-radius for desktop */
+    border-radius: 8px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-    margin-bottom: 0; /* No margin */
+    margin-bottom: 0;
+  }
+
+  .gps-hud {
+    display: none; /* Hidden on desktop, use gps-info instead */
   }
 
   #chat-container {
@@ -849,9 +928,9 @@ button:active {
   .controls {
     flex-direction: row;
     gap: 10px;
-    margin-bottom: 10px; /* Adjusted for desktop */
+    margin-bottom: 10px;
     padding: 15px;
-    border-radius: 8px; /* Restore for desktop */
+    border-radius: 8px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
     align-items: center;
   }
@@ -864,48 +943,47 @@ button:active {
   }
 
   .desktop-controls button {
-    width: 120px; /* Fixed width for uniformity */
-    height: 40px; /* Increased height for better appearance */
-    padding: 0; /* Remove padding to control size via width/height */
-    font-size: 16px; /* Larger font for better readability */
+    width: 120px;
+    height: 40px;
+    padding: 0;
+    font-size: 16px;
     font-weight: 600;
-    line-height: 40px; /* Center text vertically */
+    line-height: 40px;
     text-align: center;
-    border-radius: 6px; /* Slightly larger border-radius for smoother look */
+    border-radius: 6px;
     transition: background 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2); /* Add subtle shadow for depth */
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
   }
 
   .desktop-controls button:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3); /* Enhanced shadow on hover */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
   }
 
   .desktop-controls button:active {
     transform: translateY(0);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2); /* Reduced shadow on click */
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
   }
 
-  /* Different colors for each button */
-  .desktop-controls button:nth-child(1) { /* Profile */
+  .desktop-controls button:nth-child(1) {
     background: #3498db;
   }
   .desktop-controls button:nth-child(1):hover {
     background: #2980b9;
   }
-  .desktop-controls button:nth-child(2) { /* Messages */
+  .desktop-controls button:nth-child(2) {
     background: #2ecc71;
   }
   .desktop-controls button:nth-child(2):hover {
     background: #27ae60;
   }
-  .desktop-controls button:nth-child(3) { /* Sign Out */
+  .desktop-controls button:nth-child(3) {
     background: #e74c3c;
   }
   .desktop-controls button:nth-child(3):hover {
     background: #c0392b;
   }
-  .desktop-controls button:nth-child(4) { /* Admin Panel */
+  .desktop-controls button:nth-child(4) {
     background: #9b59b6;
   }
   .desktop-controls button:nth-child(4):hover {
@@ -917,9 +995,10 @@ button:active {
   }
 
   .gps-info {
-    margin: 10px 0; /* Adjusted for desktop */
+    display: block;
+    margin: 10px 0;
     padding: 15px;
-    border-radius: 8px; /* Restore for desktop */
+    border-radius: 8px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
   }
 
@@ -931,11 +1010,12 @@ button:active {
   .pin-controls {
     flex-direction: row;
     gap: 10px;
-    margin: 10px 0; /* Adjusted for desktop */
+    margin: 10px 0;
     padding: 15px;
-    border-radius: 8px; /* Restore for desktop */
+    border-radius: 8px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
     align-items: center;
+    display: flex;
   }
 
   .pin-controls select,
@@ -965,9 +1045,16 @@ button:active {
     line-height: 1;
     margin-left: 10px;
     border-radius: 20px;
+    position: static;
+  }
+
+  .fab-pin,
+  .voice-toggle {
+    display: none; /* Hidden on desktop */
   }
 
   .weather-alerts {
+    display: block;
     max-width: 600px;
     margin: 15px auto;
     padding: 15px;
@@ -1423,32 +1510,23 @@ button:active {
   .map-chat-container {
     position: relative;
     min-height: calc(100vh - 150px);
-    gap: 0; /* Ensure no gap */
+    gap: 0;
   }
 
   .desktop-chat {
     display: none !important;
   }
 
-  .pin-controls #alert-counter {
-    position: fixed;
-    bottom: 10px;
-    right: 10px;
-    z-index: 15;
-    padding: 6px 10px;
-  }
-
   #pin-list {
-    margin-top: 0; /* Ensure no margin */
+    margin-top: 0;
   }
 
-  /* Simplified Pin Table for Mobile */
   .pin-table {
-    box-shadow: none; /* Remove shadow for cleaner look */
+    box-shadow: none;
   }
 
   .pin-table::after {
-    display: none; /* Remove the empty gradient box on the right */
+    display: none;
   }
 
   .pin-table thead {
@@ -1513,7 +1591,7 @@ button:active {
 
   .tools-modal-content .action-buttons {
     display: grid;
-    grid-template-columns: repeat(2, 1fr); /* Two columns for buttons */
+    grid-template-columns: repeat(2, 1fr);
     gap: 6px;
     justify-items: center;
   }
