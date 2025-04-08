@@ -24,6 +24,10 @@ let directionsRenderer;
 let isMobile = false;
 let lastSpeed = 0;
 let speedLimit = 'N/A';
+let voiceNavigationEnabled = false;
+let currentDestination = null;
+let currentRoute = null;
+let lastSpokenInstruction = null;
 
 function getDistance(lat1, lon1, lat2, lon2) {
   const R = 6371000;
@@ -70,6 +74,45 @@ async function subscribeToPush() {
   }
 }
 
+function speak(text) {
+  if ('speechSynthesis' in window && voiceNavigationEnabled) {
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'en-US';
+    utterance.volume = 1;
+    utterance.rate = 1;
+    utterance.pitch = 1;
+    window.speechSynthesis.speak(utterance);
+  }
+}
+
+function speakNextInstruction() {
+  if (!voiceNavigationEnabled || !currentRoute) return;
+
+  const steps = currentRoute.routes[0].legs[0].steps;
+  if (!userLocationMarker) return;
+
+  const userPos = userLocationMarker.getPosition();
+  let closestStep = null;
+  let closestDistance = Infinity;
+
+  steps.forEach((step, index) => {
+    const stepPos = step.start_location;
+    const distance = google.maps.geometry.spherical.computeDistanceBetween(userPos, stepPos);
+    if (distance < closestDistance && distance < 500) { // Within 500 meters
+      closestDistance = distance;
+      closestStep = step;
+    }
+  });
+
+  if (closestStep && closestStep.instructions !== lastSpokenInstruction) {
+    const instruction = closestStep.instructions.replace(/<[^>]+>/g, ''); // Remove HTML tags
+    speak(`${instruction} in ${Math.round(closestDistance)} meters`);
+    lastSpokenInstruction = closestStep.instructions;
+  }
+
+  setTimeout(speakNextInstruction, 10000); // Check every 10 seconds
+}
+
 function initMap() {  
   map = new google.maps.Map(document.getElementById('map'), {
     zoom: 12,
@@ -103,7 +146,6 @@ function initMap() {
       fetchProfileForUsername();
       showMap();
       startMap();
-      fetchWeatherAlerts();
       setupWebSocket();
       checkNewMessages();
       subscribeToPush();
@@ -123,6 +165,46 @@ function initMap() {
             menuDropdown.classList.toggle('show');
           });
         }
+
+        // Add GPS HUD for mobile
+        const hud = document.createElement('div');
+        hud.className = 'gps-hud';
+        hud.innerHTML = `
+          <p class="speed">Speed: 0 mph</p>
+          <p class="destination">Destination: Not set</p>
+          <p class="eta">ETA: --</p>
+          <p class="distance">Distance: --</p>
+        `;
+        document.getElementById('map-container').appendChild(hud);
+
+        // Add FAB for pin controls
+        const fab = document.createElement('div');
+        fab.className = 'fab-pin';
+        fab.innerHTML = '+';
+        fab.addEventListener('click', () => {
+          const pinControls = document.querySelector('.pin-controls');
+          pinControls.classList.toggle('active');
+        });
+        document.body.appendChild(fab);
+
+        // Add Voice Navigation Toggle Button
+        const voiceToggle = document.createElement('div');
+        voiceToggle.className = 'voice-toggle';
+        voiceToggle.innerHTML = '🎙️';
+        voiceToggle.addEventListener('click', () => {
+          voiceNavigationEnabled = !voiceNavigationEnabled;
+          voiceToggle.classList.toggle('active', voiceNavigationEnabled);
+          if (voiceNavigationEnabled && currentRoute) {
+            speak('Voice navigation enabled');
+            speakNextInstruction();
+          } else {
+            speak('Voice navigation disabled');
+          }
+        });
+        document.body.appendChild(voiceToggle);
+      } else {
+        // Only fetch weather alerts on desktop
+        fetchWeatherAlerts();
       }
     } catch (err) {
       console.error('Invalid token:', err);
@@ -190,7 +272,6 @@ function showChatPage() {
   if (isMobile) {
     window.location.href = 'chat.html';
   }
-  // For desktop, chat is already inline, so no action needed
 }
 
 function setupWebSocket() {
@@ -356,9 +437,22 @@ function updateUserLocation(lat, lng, speed = 0) {
   const newPos = { lat, lng };
   userPath.push(newPos);
 
-  // Calculate speed in mph (speed is in meters/second from geolocation)
-  lastSpeed = speed ? (speed * 2.23694).toFixed(1) : lastSpeed; // Convert m/s to mph
-  document.getElementById('current-speed').textContent = `${lastSpeed} mph`;
+  // Calculate speed in mph
+  lastSpeed = speed ? (speed * 2.23694).toFixed(1) : lastSpeed;
+  
+  if (isMobile) {
+    // Update HUD on mobile
+    const hud = document.querySelector('.gps-hud');
+    if (hud) {
+      hud.querySelector('.speed').textContent = `Speed: ${lastSpeed} mph`;
+      hud.querySelector('.destination').textContent = `Destination: ${currentDestination || 'Not set'}`;
+      hud.querySelector('.eta').textContent = `ETA: ${document.getElementById('time-to-destination')?.textContent || '--'}`;
+      hud.querySelector('.distance').textContent = `Distance: ${document.getElementById('distance-to-destination')?.textContent || '--'}`;
+    }
+  } else {
+    // Update desktop GPS info
+    document.getElementById('current-speed').textContent = `${lastSpeed} mph`;
+  }
 
   if (!userLocationMarker) {
     userLocationMarker = new google.maps.Marker({
@@ -405,16 +499,15 @@ function updateUserLocation(lat, lng, speed = 0) {
   }
   if (!isAdmin) map.panTo(newPos);
 
-  // Fetch speed limit (simulated for now; in a real app, you'd use an API like Google Roads API)
+  // Fetch speed limit (simulated)
   fetchSpeedLimit(lat, lng);
 }
 
 function fetchSpeedLimit(lat, lng) {
-  // Simulated speed limit fetch (replace with actual API call if available)
-  // For demo purposes, we'll set a static speed limit based on location
-  // In a real app, use Google Roads API or OpenStreetMap data
-  speedLimit = '35 mph'; // Example speed limit
-  document.getElementById('speed-limit').textContent = speedLimit;
+  speedLimit = '35 mph'; // Simulated
+  if (!isMobile) {
+    document.getElementById('speed-limit').textContent = speedLimit;
+  }
 }
 
 function startLocationTracking() {
@@ -440,7 +533,6 @@ function startLocationTracking() {
           body: JSON.stringify({ latitude: userLocation.lat, longitude: userLocation.lng })
         }).catch(err => console.error('Error updating location:', err));
 
-        // Recalculate route if navigation is active
         if (directionsRenderer.getDirections()) {
           const destination = directionsRenderer.getDirections().routes[0].legs[0].end_location;
           calculateRoute(destination);
@@ -508,6 +600,7 @@ async function calculateRoute(destination) {
   directionsService.route(request, async (result, status) => {
     if (status === google.maps.DirectionsStatus.OK) {
       directionsRenderer.setDirections(result);
+      currentRoute = result;
       const route = result.routes[0];
       const leg = route.legs[0];
       const duration = leg.duration_in_traffic || leg.duration;
@@ -515,13 +608,20 @@ async function calculateRoute(destination) {
       const normalDuration = leg.duration.value;
       const trafficDuration = leg.duration_in_traffic ? leg.duration_in_traffic.value : normalDuration;
 
-      // Update GPS info
-      document.getElementById('time-to-destination').textContent = duration.text;
-      document.getElementById('distance-to-destination').textContent = distance.text;
+      // Update GPS info (for desktop)
+      if (!isMobile) {
+        document.getElementById('time-to-destination').textContent = duration.text;
+        document.getElementById('distance-to-destination').textContent = distance.text;
+      }
+
+      // Update destination for HUD
+      currentDestination = document.getElementById('address-search').value;
+      updateUserLocation(origin.lat(), origin.lng(), lastSpeed); // Refresh HUD
 
       // Check for traffic delays
-      if (trafficDuration > normalDuration * 1.2) { // 20% longer than normal
+      if (trafficDuration > normalDuration * 1.2) {
         alert(`Traffic delay detected! Estimated travel time: ${duration.text}`);
+        if (voiceNavigationEnabled) speak(`Traffic delay detected. Estimated travel time: ${duration.text}`);
       }
 
       // Check for user-reported pins along the route
@@ -533,12 +633,18 @@ async function calculateRoute(destination) {
       const alerts = pins.filter(pin => {
         if (pin.pinType !== 'alert') return false;
         const pinPos = new google.maps.LatLng(pin.latitude, pin.longitude);
-        return routePath.some(point => google.maps.geometry.spherical.computeDistanceBetween(point, pinPos) < 500); // Within 500 meters
+        return routePath.some(point => google.maps.geometry.spherical.computeDistanceBetween(point, pinPos) < 500);
       });
 
       if (alerts.length > 0) {
         const alertMessages = alerts.map(pin => pin.description).join(', ');
         alert(`Alerts on your route: ${alertMessages}`);
+        if (voiceNavigationEnabled) speak(`Alerts on your route: ${alertMessages}`);
+      }
+
+      // Start voice navigation if enabled
+      if (voiceNavigationEnabled) {
+        speakNextInstruction();
       }
     } else {
       console.error('Directions request failed:', status);
@@ -606,7 +712,6 @@ async function login() {
       fetchProfileForUsername();
       showMap();
       startMap();
-      fetchWeatherAlerts();
       setupWebSocket();
       checkNewMessages();
     } else {
@@ -643,7 +748,6 @@ function signOut() {
   document.getElementById('pin-list').innerHTML = '';
   document.getElementById('chat-messages').innerHTML = '';
   document.getElementById('alert-counter').textContent = 'Current Alerts: 0';
-  document.getElementById('weather-content').textContent = 'Loading weather alerts...';
   document.getElementById('messages-btn').textContent = 'Messages';
   if (isMobile) {
     document.getElementById('mobile-messages-btn').textContent = 'Messages';
@@ -695,6 +799,9 @@ async function addPin() {
       document.getElementById('description').value = '';
       document.getElementById('media-upload').value = '';
       currentLatLng = null;
+      if (isMobile) {
+        document.querySelector('.pin-controls').classList.remove('active');
+      }
     } else {
       const errorData = await postResponse.json();
       alert(`Failed to add alert: ${errorData.message || 'Unknown error'}`);
@@ -1044,7 +1151,6 @@ function closeMediaView() {
 async function fetchPins() {
   console.log('fetchPins() started');
   try {
-    // Fetch user pins
     const pinResponse = await fetch('https://pinmap-website.onrender.com/pins', {
       headers: { 'Authorization': `Bearer ${token}` },
     });
@@ -1059,7 +1165,6 @@ async function fetchPins() {
     let pins = await pinResponse.json();
     console.log('Raw fetched pins:', JSON.stringify(pins, null, 2));
 
-    // Fetch traffic cameras (handle errors gracefully)
     let trafficCameras = [];
     try {
       const cameraResponse = await fetch('https://pinmap-website.onrender.com/traffic-cameras');
@@ -1073,7 +1178,6 @@ async function fetchPins() {
       console.warn('Error fetching traffic cameras:', err);
     }
 
-    // Format traffic cameras to match pin structure
     const formattedCameras = trafficCameras.map(cam => ({
       _id: cam.cameraId,
       description: cam.description,
@@ -1088,10 +1192,9 @@ async function fetchPins() {
       imageUrl: cam.imageUrl
     }));
 
-    // Combine user pins with traffic cameras
     pins = [...pins, ...formattedCameras];
 
-    const filteredPins = applyFilter(pins.filter(pin => pin.pinType !== 'traffic-camera')); // Exclude traffic cams from table
+    const filteredPins = applyFilter(pins.filter(pin => pin.pinType !== 'traffic-camera'));
     document.getElementById('alert-counter').textContent = `Current Alerts: ${pins.filter(pin => pin.pinType === 'alert').length}`;
 
     Object.keys(markers).forEach(pinId => {
@@ -1248,6 +1351,9 @@ function changePage(delta) {
 }
 
 async function fetchWeatherAlerts() {
+  // Only fetch on desktop
+  if (isMobile) return;
+
   try {
     const response = await fetch('https://pinmap-website.onrender.com/weather');
     const data = await response.json();
