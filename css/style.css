@@ -1,3 +1,5 @@
+/* css/style.css */
+
 * {
   margin: 0;
   padding: 0;
@@ -96,13 +98,13 @@ header h1 {
 
 #map {
   width: 100%;
-  height: calc(100vh - 200px);
+  height: calc(100vh - 150px); /* Adjusted for header and controls */
   border-radius: 8px 8px 0 0;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   margin-bottom: 0;
 }
 
-/* GPS HUD Overlay */
+/* Updated GPS HUD Styling to Match Screenshot */
 .gps-hud {
   position: absolute;
   bottom: 10px;
@@ -120,19 +122,50 @@ header h1 {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
-.gps-hud p {
-  margin: 0;
-  font-weight: 600;
+.gps-hud .speed-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.gps-hud .speed-icon {
+  width: 24px;
+  height: 24px;
+  background: url('https://img.icons8.com/ios-filled/24/ffffff/speed.png') no-repeat center;
+  background-size: contain;
 }
 
 .gps-hud .speed {
   font-size: 18px;
-  color: #1abc9c;
+  color: #ff4d4d; /* Red color for speed */
 }
 
-.gps-hud .destination {
+.gps-hud .street {
   font-size: 16px;
-  color: #3498db;
+  color: #00b7eb; /* Cyan color for street name */
+}
+
+.gps-hud .alert-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.gps-hud .alert-icon {
+  width: 24px;
+  height: 24px;
+  background: url('https://img.icons8.com/ios-filled/24/ffffff/warning-shield.png') no-repeat center;
+  background-size: contain;
+}
+
+.gps-hud .alert {
+  font-size: 14px;
+  color: #ffeb3b; /* Yellow for alerts */
+}
+
+.gps-hud .eta-distance {
+  display: flex;
+  justify-content: space-between;
 }
 
 .gps-hud .eta,
@@ -293,6 +326,10 @@ header h1 {
   padding: 6px;
 }
 
+.menu-dropdown.show {
+  display: flex;
+}
+
 .menu-dropdown button {
   width: 100%;
   background: #3498db;
@@ -307,10 +344,6 @@ header h1 {
 
 .menu-dropdown button:hover {
   background: #2980b9;
-}
-
-.menu-dropdown.show {
-  display: flex;
 }
 
 .gps-info {
@@ -454,9 +487,7 @@ header h1 {
 }
 
 #pin-list {
-  margin: 0;
-  width: 100%;
-  overflow-x: auto;
+  display: none;
 }
 
 .weather-alerts {
