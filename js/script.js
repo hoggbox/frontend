@@ -207,7 +207,8 @@ async function dropAlertAtCurrentLocation() {
   }
 }
 
-function initMap() {
+// Explicitly make initMap a global function
+async function initMap() {
   try {
     // More detailed map style with landmarks and POIs
     const detailedMapStyle = [
@@ -499,6 +500,9 @@ function initMap() {
     alert('Failed to initialize the map. Please check your Google Maps API key and ensure location services are enabled.');
   }
 }
+
+// Ensure initMap is globally accessible
+window.initMap = initMap;
 
 function setupMenuDropdown() {
   const menuBtn = document.getElementById('menu-btn');
