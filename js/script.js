@@ -386,7 +386,22 @@ function initMap() {
 
     token = localStorage.getItem('token');
     if (token) {
+      // Validate token by making a test request
       try {
+        const response = await fetch('https://pinmap-website.onrender.com/auth/validate', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (response.status === 401) {
+          console.log('Token is invalid or expired on init. Clearing token and redirecting to login.');
+          localStorage.removeItem('token');
+          token = null;
+          showLogin();
+          return;
+        }
+        if (!response.ok) {
+          throw new Error(`Token validation failed: ${response.status} ${response.statusText}`);
+        }
+
         const payload = JSON.parse(atob(token.split('.')[1]));
         userId = payload.id;
         isAdmin = payload.email === 'imhoggbox@gmail.com';
@@ -459,8 +474,10 @@ function initMap() {
           initVoiceCommands();
         }
       } catch (err) {
-        console.error('Invalid token:', err);
-        signOut();
+        console.error('Initial token validation error:', err);
+        localStorage.removeItem('token');
+        token = null;
+        showLogin();
       }
     } else {
       showLogin();
@@ -516,8 +533,16 @@ async function fetchProfileForUsername() {
 }
 
 function showLogin() {
-  document.getElementById('auth').style.display = 'block';
-  document.getElementById('map-container').style.display = 'none';
+  const authElement = document.getElementById('auth');
+  if (authElement) {
+    authElement.style.display = 'block';
+  } else {
+    console.error('Login form (#auth) not found in the DOM');
+  }
+  const mapContainer = document.getElementById('map-container');
+  if (mapContainer) {
+    mapContainer.style.display = 'none';
+  }
   document.getElementById('profile-container').style.display = 'none';
   document.getElementById('profile-view-container').style.display = 'none';
   document.getElementById('media-view').style.display = 'none';
@@ -527,7 +552,12 @@ function showLogin() {
 
 function showMap() {
   document.getElementById('auth').style.display = 'none';
-  document.getElementById('map-container').style.display = 'block';
+  const mapContainer = document.getElementById('map-container');
+  if (mapContainer) {
+    mapContainer.style.display = 'block';
+  } else {
+    console.error('Map container (#map-container) not found in the DOM');
+  }
   document.getElementById('profile-container').style.display = 'none';
   document.getElementById('profile-view-container').style.display = 'none';
   document.getElementById('media-view').style.display = 'none';
