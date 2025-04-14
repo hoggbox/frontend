@@ -1,3 +1,5 @@
+// js/script.js
+
 let token;
 let currentLatLng;
 let userId;
@@ -8,13 +10,6 @@ let userLocationMarker;
 let userPath = [];
 let userPolyline = null;
 let watchId;
-let sortDirection = {};
-let lastSortedColumn = null;
-let currentFilter = 'newest';
-let currentPage = 1;
-const pinsPerPage = 8;
-let searchQuery = '';
-let currentProfileUserId;
 let ws;
 let username;
 let map;
@@ -28,6 +23,7 @@ let voiceNavigationEnabled = false;
 let currentDestination = null;
 let currentRoute = null;
 let lastSpokenInstruction = null;
+let recognition; // For voice commands
 
 function getDistance(lat1, lon1, lat2, lon2) {
   const R = 6371000;
@@ -98,19 +94,105 @@ function speakNextInstruction() {
   steps.forEach((step, index) => {
     const stepPos = step.start_location;
     const distance = google.maps.geometry.spherical.computeDistanceBetween(userPos, stepPos);
-    if (distance < closestDistance && distance < 500) { // Within 500 meters
+    if (distance < closestDistance && distance < 500) {
       closestDistance = distance;
       closestStep = step;
     }
   });
 
   if (closestStep && closestStep.instructions !== lastSpokenInstruction) {
-    const instruction = closestStep.instructions.replace(/<[^>]+>/g, ''); // Remove HTML tags
+    const instruction = closestStep.instructions.replace(/<[^>]+>/g, '');
     speak(`${instruction} in ${Math.round(closestDistance)} meters`);
     lastSpokenInstruction = closestStep.instructions;
   }
 
-  setTimeout(speakNextInstruction, 10000); // Check every 10 seconds
+  setTimeout(speakNextInstruction, 10000);
+}
+
+function initVoiceCommands() {
+  if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = false;
+    recognition.lang = 'en-US';
+
+    recognition.onresult = (event) => {
+      const transcript = event.results[event.results.length - 1][0].transcript.trim().toLowerCase();
+      console.log('Voice command detected:', transcript);
+      if (transcript.includes('drop alert')) {
+        speak('Dropping alert at your current location.');
+        dropAlertAtCurrentLocation();
+      }
+    };
+
+    recognition.onend = () => {
+      if (voiceNavigationEnabled) {
+        recognition.start();
+      }
+    };
+
+    recognition.onerror = (event) => {
+      console.error('Speech recognition error:', event.error);
+    };
+  } else {
+    console.warn('Speech recognition not supported in this browser.');
+  }
+}
+
+async function dropAlertAtCurrentLocation() {
+  if (!userLocationMarker) {
+    speak('Unable to drop alert. Current location not available.');
+    return;
+  }
+
+  const position = userLocationMarker.getPosition();
+  currentLatLng = { lat: position.lat(), lng: position.lng() };
+  
+  try {
+    const response = await fetch('https://pinmap-website.onrender.com/pins', {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (response.status === 401) {
+      signOut();
+      return speak('Session expired. Please log in again.');
+    }
+    const pins = await response.json();
+    const tooClose = pins.some(pin => getDistance(currentLatLng.lat, currentLatLng.lng, pin.latitude, pin.longitude) < 304.8);
+    if (tooClose) {
+      const closestPin = pins.find(pin => getDistance(currentLatLng.lat, currentLatLng.lng, pin.latitude, pin.longitude) < 304.8);
+      speak(`Alert too close to existing pin at latitude ${closestPin.latitude.toFixed(4)}, longitude ${closestPin.longitude.toFixed(4)}`);
+      currentLatLng = null;
+      return;
+    }
+
+    const description = 'Voice-Dropped Alert'; // Default description for voice command
+    const formData = new FormData();
+    formData.append('latitude', currentLatLng.lat);
+    formData.append('longitude', currentLatLng.lng);
+    formData.append('description', description);
+    formData.append('pinType', 'alert');
+
+    const postResponse = await fetch('https://pinmap-website.onrender.com/pins', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+      body: formData,
+    });
+
+    if (postResponse.ok) {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'newPin', pin: { latitude: currentLatLng.lat, longitude: currentLatLng.lng, description } }));
+      }
+      speak('Alert dropped successfully.');
+      currentLatLng = null;
+    } else {
+      const errorData = await postResponse.json();
+      speak(`Failed to drop alert: ${errorData.message || 'Unknown error'}`);
+    }
+  } catch (err) {
+    console.error('Voice drop alert error:', err);
+    speak('Error dropping alert. Please try again.');
+  }
 }
 
 function initMap() {  
@@ -129,11 +211,9 @@ function initMap() {
     polylineOptions: { strokeColor: '#1E90FF', strokeWeight: 5 }
   });
 
-  // Add Traffic Layer
   const trafficLayer = new google.maps.TrafficLayer();
   trafficLayer.setMap(map);
 
-  // Detect if the user is on a mobile device
   isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
   token = localStorage.getItem('token');
@@ -156,28 +236,28 @@ function initMap() {
       const bizOption = document.querySelector('#pin-type option[value="business"]');
       if (bizOption) bizOption.style.display = isAdmin ? 'block' : 'none';
 
-      // Setup dropdown menu toggle for mobile
-      if (isMobile) {
-        const menuBtn = document.getElementById('menu-btn');
-        const menuDropdown = document.getElementById('menu-dropdown');
-        if (menuBtn && menuDropdown) {
-          menuBtn.addEventListener('click', () => {
-            menuDropdown.classList.toggle('show');
-          });
-        }
+      setupMenuDropdown();
 
-        // Add GPS HUD for mobile
+      if (isMobile) {
         const hud = document.createElement('div');
         hud.className = 'gps-hud';
         hud.innerHTML = `
-          <p class="speed">Speed: 0 mph</p>
-          <p class="destination">Destination: Not set</p>
-          <p class="eta">ETA: --</p>
-          <p class="distance">Distance: --</p>
+          <div class="speed-container">
+            <div class="speed-icon"></div>
+            <p class="speed">Speed: 0 mph</p>
+          </div>
+          <p class="street">Street: Not set</p>
+          <div class="alert-container">
+            <div class="alert-icon"></div>
+            <p class="alert">No alerts</p>
+          </div>
+          <div class="eta-distance">
+            <p class="eta">ETA: --</p>
+            <p class="distance">Distance: --</p>
+          </div>
         `;
         document.getElementById('map-container').appendChild(hud);
 
-        // Add FAB for pin controls
         const fab = document.createElement('div');
         fab.className = 'fab-pin';
         fab.innerHTML = '+';
@@ -187,24 +267,24 @@ function initMap() {
         });
         document.body.appendChild(fab);
 
-        // Add Voice Navigation Toggle Button
         const voiceToggle = document.createElement('div');
         voiceToggle.className = 'voice-toggle';
         voiceToggle.innerHTML = '🎙️';
         voiceToggle.addEventListener('click', () => {
           voiceNavigationEnabled = !voiceNavigationEnabled;
           voiceToggle.classList.toggle('active', voiceNavigationEnabled);
-          if (voiceNavigationEnabled && currentRoute) {
+          if (voiceNavigationEnabled) {
             speak('Voice navigation enabled');
             speakNextInstruction();
+            if (recognition) recognition.start();
           } else {
             speak('Voice navigation disabled');
+            if (recognition) recognition.stop();
           }
         });
         document.body.appendChild(voiceToggle);
-      } else {
-        // Only fetch weather alerts on desktop
-        fetchWeatherAlerts();
+
+        initVoiceCommands();
       }
     } catch (err) {
       console.error('Invalid token:', err);
@@ -225,6 +305,16 @@ function initMap() {
       reader.readAsDataURL(file);
     }
   });
+}
+
+function setupMenuDropdown() {
+  const menuBtn = document.getElementById('menu-btn');
+  const menuDropdown = document.getElementById('menu-dropdown');
+  if (menuBtn && menuDropdown) {
+    menuBtn.addEventListener('click', () => {
+      menuDropdown.classList.toggle('show');
+    });
+  }
 }
 
 async function fetchProfileForUsername() {
@@ -269,9 +359,7 @@ function showMap() {
 }
 
 function showChatPage() {
-  if (isMobile) {
-    window.location.href = 'chat.html';
-  }
+  window.location.href = 'chat.html';
 }
 
 function setupWebSocket() {
@@ -341,13 +429,9 @@ function setupWebSocket() {
     } else if (data.type === 'privateMessage') {
       checkNewMessages();
     } else if (data.type === 'newPin') {
-      fetchPins();
+      // No longer need to fetch pins here since pin-list is on a separate page
     } else if (data.type === 'newComment') {
-      const pinId = data.pinId;
-      if (document.getElementById(`comment-modal-${pinId}`)) {
-        showComments(pinId);
-      }
-      fetchPins();
+      // Pin comments are handled on the alerts page
     }
   };
   ws.onclose = () => {
@@ -362,6 +446,7 @@ function setupWebSocket() {
 
 function addChatMessage(data) {
   const chatMessages = document.getElementById('chat-messages');
+  if (!chatMessages) return; // Chat messages are on a separate page
   const messageDiv = document.createElement('div');
   messageDiv.className = 'chat-message';
   messageDiv.innerHTML = `
@@ -374,15 +459,7 @@ function addChatMessage(data) {
 }
 
 function sendChatMessage() {
-  const messageInput = document.getElementById('chat-input');
-  const message = messageInput.value.trim();
-  if (!message) return;
-  if (ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({ type: 'chat', userId, username: username || 'Anonymous', message }));
-    messageInput.value = '';
-  } else {
-    alert('Chat connection not available.');
-  }
+  window.location.href = 'chat.html';
 }
 
 function startMap() {
@@ -393,19 +470,16 @@ function startMap() {
         console.log('Initial position:', userLocation);
         map.setCenter(userLocation);
         updateUserLocation(userLocation.lat, userLocation.lng);
-        fetchPins();
         startLocationTracking();
       },
       (error) => {
         console.error('Geolocation error:', error);
         map.setCenter({ lat: 33.0801, lng: -83.2321 });
-        fetchPins();
       },
       { enableHighAccuracy: true, timeout: 5000 }
     );
   } else {
     map.setCenter({ lat: 33.0801, lng: -83.2321 });
-    fetchPins();
   }
 
   map.addListener('click', (e) => {
@@ -437,20 +511,21 @@ function updateUserLocation(lat, lng, speed = 0) {
   const newPos = { lat, lng };
   userPath.push(newPos);
 
-  // Calculate speed in mph
   lastSpeed = speed ? (speed * 2.23694).toFixed(1) : lastSpeed;
   
   if (isMobile) {
-    // Update HUD on mobile
     const hud = document.querySelector('.gps-hud');
     if (hud) {
       hud.querySelector('.speed').textContent = `Speed: ${lastSpeed} mph`;
-      hud.querySelector('.destination').textContent = `Destination: ${currentDestination || 'Not set'}`;
+      hud.querySelector('.street').textContent = `Street: Main Street`; // Simulated
       hud.querySelector('.eta').textContent = `ETA: ${document.getElementById('time-to-destination')?.textContent || '--'}`;
       hud.querySelector('.distance').textContent = `Distance: ${document.getElementById('distance-to-destination')?.textContent || '--'}`;
+
+      // Simulated speed camera alert (replace with real data as needed)
+      const distanceToCamera = 0.2; // Simulated distance in miles
+      hud.querySelector('.alert').textContent = `Speed camera in ${distanceToCamera} miles`;
     }
   } else {
-    // Update desktop GPS info
     document.getElementById('current-speed').textContent = `${lastSpeed} mph`;
   }
 
@@ -499,7 +574,6 @@ function updateUserLocation(lat, lng, speed = 0) {
   }
   if (!isAdmin) map.panTo(newPos);
 
-  // Fetch speed limit (simulated)
   fetchSpeedLimit(lat, lng);
 }
 
@@ -608,23 +682,19 @@ async function calculateRoute(destination) {
       const normalDuration = leg.duration.value;
       const trafficDuration = leg.duration_in_traffic ? leg.duration_in_traffic.value : normalDuration;
 
-      // Update GPS info (for desktop)
       if (!isMobile) {
         document.getElementById('time-to-destination').textContent = duration.text;
         document.getElementById('distance-to-destination').textContent = distance.text;
       }
 
-      // Update destination for HUD
       currentDestination = document.getElementById('address-search').value;
-      updateUserLocation(origin.lat(), origin.lng(), lastSpeed); // Refresh HUD
+      updateUserLocation(origin.lat(), origin.lng(), lastSpeed);
 
-      // Check for traffic delays
       if (trafficDuration > normalDuration * 1.2) {
         alert(`Traffic delay detected! Estimated travel time: ${duration.text}`);
         if (voiceNavigationEnabled) speak(`Traffic delay detected. Estimated travel time: ${duration.text}`);
       }
 
-      // Check for user-reported pins along the route
       const pinResponse = await fetch('https://pinmap-website.onrender.com/pins', {
         headers: { 'Authorization': `Bearer ${token}` },
       });
@@ -642,7 +712,6 @@ async function calculateRoute(destination) {
         if (voiceNavigationEnabled) speak(`Alerts on your route: ${alertMessages}`);
       }
 
-      // Start voice navigation if enabled
       if (voiceNavigationEnabled) {
         speakNextInstruction();
       }
@@ -745,9 +814,7 @@ function signOut() {
   });
   markers = {};
   showLogin();
-  document.getElementById('pin-list').innerHTML = '';
   document.getElementById('chat-messages').innerHTML = '';
-  document.getElementById('alert-counter').textContent = 'Current Alerts: 0';
   document.getElementById('messages-btn').textContent = 'Messages';
   if (isMobile) {
     document.getElementById('mobile-messages-btn').textContent = 'Messages';
@@ -794,7 +861,6 @@ async function addPin() {
       if (ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: 'newPin', pin: { latitude: currentLatLng.lat, longitude: currentLatLng.lng, description } }));
       }
-      fetchPins();
       document.getElementById('pin-type').value = '';
       document.getElementById('description').value = '';
       document.getElementById('media-upload').value = '';
@@ -812,868 +878,8 @@ async function addPin() {
   }
 }
 
-async function extendPin(pinId) {
-  try {
-    const response = await fetch(`https://pinmap-website.onrender.com/pins/extend/${pinId}`, {
-      method: 'PUT',
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    if (response.ok) {
-      alert('Pin expiration extended by 2 hours');
-      fetchPins();
-      if (isMobile) closeToolsModal();
-    } else {
-      const errorData = await response.json();
-      alert(errorData.message || 'Failed to extend pin');
-    }
-  } catch (err) {
-    console.error('Extend pin error:', err);
-    alert('Error extending pin');
-  }
-}
-
-async function verifyPin(pinId) {
-  try {
-    const response = await fetch(`https://pinmap-website.onrender.com/pins/verify/${pinId}`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    const result = await response.json();
-    if (response.ok) {
-      alert(`Pin verified. Verifications: ${result.verifications}${result.verified ? ' (Verified)' : ''}`);
-      fetchPins();
-      if (isMobile) closeToolsModal();
-    } else {
-      alert(result.message || 'Failed to verify pin');
-    }
-  } catch (err) {
-    console.error('Verify pin error:', err);
-    alert('Error verifying pin');
-  }
-}
-
-async function showComments(pinId) {
-  try {
-    const response = await fetch(`https://pinmap-website.onrender.com/pins/comments/${pinId}`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    if (response.ok) {
-      const comments = await response.json();
-      const commentModal = document.createElement('div');
-      commentModal.className = 'comment-modal';
-      commentModal.id = `comment-modal-${pinId}`;
-      commentModal.innerHTML = `
-        <h3>Comments</h3>
-        <div class="comment-list" id="comment-list-${pinId}"></div>
-        <div class="comment-input-container">
-          <input type="text" id="comment-input-${pinId}" placeholder="Add a comment...">
-          <button class="post-btn" onclick="addComment('${pinId}')">Post</button>
-        </div>
-        <button class="close-btn" onclick="closeComments()">Close</button>
-      `;
-      document.body.appendChild(commentModal);
-      renderComments(pinId, comments);
-    } else {
-      const errorData = await response.json();
-      alert(`Failed to fetch comments: ${errorData.message || 'Unknown error'}`);
-    }
-  } catch (err) {
-    console.error('Fetch comments error:', err);
-    alert('Error fetching comments');
-  }
-}
-
-function renderComments(pinId, comments, parentElementId = `comment-list-${pinId}`, level = 0) {
-  const commentList = document.getElementById(parentElementId);
-  commentList.innerHTML = '';
-  const paginatedComments = comments.slice(0, 8);
-  paginatedComments.forEach(comment => {
-    const commentDiv = document.createElement('div');
-    commentDiv.className = `comment-item ${level > 0 ? 'reply' : ''}`;
-    commentDiv.innerHTML = `
-      <span class="username">${comment.username}</span>:
-      ${comment.content}
-      <span class="timestamp">${new Date(comment.timestamp).toLocaleString()}</span>
-      <div class="comment-actions">
-        <button class="like-btn" onclick="likeComment('${comment._id}')">Like (${comment.likes.length})</button>
-        <button class="dislike-btn" onclick="dislikeComment('${comment._id}')">Dislike (${comment.dislikes.length})</button>
-        <button class="reply-btn" onclick="showReplyInput('${pinId}', '${comment._id}')">Reply</button>
-      </div>
-      <div id="replies-${comment._id}" class="comment-list"></div>
-    `;
-    commentList.appendChild(commentDiv);
-    if (comment.replies.length > 0) {
-      renderComments(pinId, comment.replies, `replies-${comment._id}`, level + 1);
-    }
-  });
-}
-
-async function addComment(pinId, parentCommentId = null) {
-  const commentInput = document.getElementById(`comment-input-${pinId}`);
-  const content = commentInput ? commentInput.value.trim() : '';
-  const replyInput = parentCommentId ? document.getElementById(`reply-input-${parentCommentId}`) : null;
-  const replyContent = replyInput ? replyInput.value.trim() : '';
-  const finalContent = replyContent || content;
-
-  if (!finalContent) return alert('Comment cannot be empty');
-  try {
-    const response = await fetch(`https://pinmap-website.onrender.com/pins/comment/${pinId}`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content: finalContent, parentCommentId })
-    });
-    if (response.ok) {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'newComment', pinId }));
-      }
-      closeComments();
-      showComments(pinId);
-    } else {
-      const errorData = await response.json();
-      alert(errorData.message || 'Failed to add comment');
-    }
-  } catch (err) {
-    console.error('Add comment error:', err);
-    alert('Error adding comment');
-  }
-}
-
-function showReplyInput(pinId, parentCommentId) {
-  const replyContainer = document.getElementById(`replies-${parentCommentId}`);
-  const existingInput = replyContainer.querySelector('.comment-input-container');
-  if (existingInput) return;
-  const replyInput = document.createElement('div');
-  replyInput.className = 'comment-input-container';
-  replyInput.innerHTML = `
-    <input type="text" id="reply-input-${parentCommentId}" placeholder="Add a reply...">
-    <button class="post-btn" onclick="addComment('${pinId}', '${parentCommentId}')">Post</button>
-  `;
-  replyContainer.appendChild(replyInput);
-}
-
-async function likeComment(commentId) {
-  try {
-    const response = await fetch(`https://pinmap-website.onrender.com/pins/comment/${commentId}/like`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    if (response.ok) {
-      const pinId = document.querySelector('.comment-modal').id.split('-')[2];
-      closeComments();
-      showComments(pinId);
-    } else {
-      const errorData = await response.json();
-      alert(errorData.message || 'Failed to like comment');
-    }
-  } catch (err) {
-    console.error('Like comment error:', err);
-    alert('Error liking comment');
-  }
-}
-
-async function dislikeComment(commentId) {
-  try {
-    const response = await fetch(`https://pinmap-website.onrender.com/pins/comment/${commentId}/dislike`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    if (response.ok) {
-      const pinId = document.querySelector('.comment-modal').id.split('-')[2];
-      closeComments();
-      showComments(pinId);
-    } else {
-      const errorData = await response.json();
-      alert(errorData.message || 'Failed to dislike comment');
-    }
-  } catch (err) {
-    console.error('Dislike comment error:', err);
-    alert('Error disliking comment');
-  }
-}
-
-function closeComments() {
-  const commentModal = document.querySelector('.comment-modal');
-  if (commentModal) commentModal.remove();
-}
-
-async function removePin(pinId) {
-  try {
-    const response = await fetch(`https://pinmap-website.onrender.com/pins/${pinId}`, {
-      method: 'DELETE',
-      headers: { 'Authorization': `Bearer ${token}` },
-    });
-    if (response.ok) {
-      if (markers[pinId]) {
-        markers[pinId].setMap(null);
-        delete markers[pinId];
-      }
-      fetchPins();
-      if (isMobile) closeToolsModal();
-    } else if (response.status === 401) {
-      signOut();
-      alert('Session expired. Please log in again.');
-    } else {
-      const errorData = await response.json();
-      alert(errorData.message || 'Failed to remove pin');
-    }
-  } catch (err) {
-    console.error('Remove pin error:', err);
-    alert('Error removing pin');
-  }
-}
-
-async function voteToRemove(pinId) {
-  try {
-    const response = await fetch(`https://pinmap-website.onrender.com/pins/vote/${pinId}`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    const result = await response.json();
-    if (response.ok) {
-      if (result.removed) {
-        if (markers[pinId]) {
-          markers[pinId].setMap(null);
-          delete markers[pinId];
-        }
-        alert('Pin removed due to votes');
-      } else {
-        alert(`Vote recorded. Votes: ${result.voteCount}/8`);
-      }
-      fetchPins();
-      if (isMobile) closeToolsModal();
-    } else {
-      alert(result.message || 'Failed to vote');
-    }
-  } catch (err) {
-    console.error('Vote error:', err);
-    alert('Error voting');
-  }
-}
-
-function goToPinLocation(lat, lng) {
-  map.setCenter({ lat: parseFloat(lat), lng: parseFloat(lng) });
-  map.setZoom(15);
-}
-
-function sortTable(pins, column) {
-  if (lastSortedColumn === column) sortDirection[column] = !sortDirection[column];
-  else {
-    sortDirection[column] = true;
-    lastSortedColumn = column;
-  }
-  return pins.sort((a, b) => {
-    let valA, valB;
-    switch (column) {
-      case 'Description': valA = a.description.toLowerCase(); valB = b.description.toLowerCase(); break;
-      case 'Latitude': valA = a.latitude; valB = b.latitude; break;
-      case 'Longitude': valA = a.longitude; valB = b.longitude; break;
-      case 'Posted By': valA = (a.username || a.userEmail).toLowerCase(); valB = (b.username || b.userEmail).toLowerCase(); break;
-      case 'Timestamp (ET)': valA = new Date(a.createdAt); valB = new Date(b.createdAt); break;
-    }
-    return sortDirection[column] ? (valA < valB ? -1 : 1) : (valA < valB ? 1 : -1);
-  });
-}
-
-function applyFilter(pins) {
-  let filteredPins = [...pins];
-  if (searchQuery) {
-    const queryLower = searchQuery.toLowerCase();
-    filteredPins = filteredPins.filter(pin => 
-      (pin.username && pin.username.toLowerCase().includes(queryLower)) ||
-      (pin.userEmail && pin.userEmail.toLowerCase().includes(queryLower))
-    );
-  }
-  switch (currentFilter) {
-    case 'newest': filteredPins.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)); break;
-    case 'oldest': filteredPins.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt)); break;
-    case 'myPins': filteredPins = filteredPins.filter(pin => pin.userId._id === userId); break;
-  }
-  return filteredPins;
-}
-
-function showToolsModal(pin) {
-  const modal = document.createElement('div');
-  modal.className = 'tools-modal';
-  modal.id = `tools-modal-${pin._id}`;
-  const isOwnPin = pin.userId._id === userId;
-  const canRemove = isAdmin || isOwnPin;
-  const isAlertPin = pin.pinType === 'alert';
-  modal.innerHTML = `
-    <div class="tools-modal-content">
-      <h3>Pin Actions</h3>
-      <div class="action-buttons">
-        <button class="standard-btn goto-btn" onclick="goToPinLocation(${pin.latitude}, ${pin.longitude})">Go To</button>
-        <button class="standard-btn remove-btn" onclick="${canRemove ? `removePin('${pin._id}')` : `alert('You can only remove your own pins unless you are an admin')`}" ${!canRemove ? 'disabled' : ''}>Remove</button>
-        ${isAlertPin ? `
-          <button class="standard-btn extend-btn" onclick="${canRemove ? `extendPin('${pin._id}')` : `alert('Only the pin owner or admin can extend')`}" ${!canRemove ? 'disabled' : ''}>Extend</button>
-          <button class="standard-btn verify-btn" onclick="verifyPin('${pin._id}')">Verify (${pin.verifications.length})</button>
-          <button class="standard-btn vote-btn" onclick="voteToRemove('${pin._id}')">Vote (${pin.voteCount}/8)</button>
-        ` : ''}
-        <button class="standard-btn comment-btn" onclick="showComments('${pin._id}')">Comments (${pin.comments.length})</button>
-        <button class="standard-btn close-btn" onclick="closeToolsModal()">Close</button>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(modal);
-}
-
-function closeToolsModal() {
-  const modal = document.querySelector('.tools-modal');
-  if (modal) modal.remove();
-}
-
-function viewMedia(mediaPath) {
-  const mediaView = document.getElementById('media-view');
-  const mediaImage = document.getElementById('media-image');
-  const mediaVideo = document.getElementById('media-video');
-  mediaImage.style.display = 'none';
-  mediaVideo.style.display = 'none';
-  if (mediaPath.endsWith('.mp4') || mediaPath.endsWith('.webm')) {
-    mediaVideo.src = `https://pinmap-website.onrender.com${mediaPath}`;
-    mediaVideo.style.display = 'block';
-  } else {
-    mediaImage.src = `https://pinmap-website.onrender.com${mediaPath}`;
-    mediaImage.style.display = 'block';
-  }
-  document.getElementById('map-container').style.display = 'none';
-  mediaView.style.display = 'flex';
-}
-
-function closeMediaView() {
-  const mediaVideo = document.getElementById('media-video');
-  mediaVideo.pause();
-  mediaVideo.src = '';
-  document.getElementById('media-image').src = '';
-  document.getElementById('media-view').style.display = 'none';
-  document.getElementById('map-container').style.display = 'block';
-}
-
-async function fetchPins() {
-  console.log('fetchPins() started');
-  try {
-    const pinResponse = await fetch('https://pinmap-website.onrender.com/pins', {
-      headers: { 'Authorization': `Bearer ${token}` },
-    });
-    console.log('Fetch response status:', pinResponse.status);
-    if (pinResponse.status === 401) {
-      signOut();
-      return alert('Session expired. Please log in again.');
-    }
-    if (!pinResponse.ok) {
-      throw new Error(`Failed to fetch pins: ${pinResponse.statusText}`);
-    }
-    let pins = await pinResponse.json();
-    console.log('Raw fetched pins:', JSON.stringify(pins, null, 2));
-
-    let trafficCameras = [];
-    try {
-      const cameraResponse = await fetch('https://pinmap-website.onrender.com/traffic-cameras');
-      if (cameraResponse.ok) {
-        trafficCameras = await cameraResponse.json();
-        console.log('Fetched traffic cameras:', JSON.stringify(trafficCameras, null, 2));
-      } else {
-        console.warn('Failed to fetch traffic cameras:', cameraResponse.statusText);
-      }
-    } catch (err) {
-      console.warn('Error fetching traffic cameras:', err);
-    }
-
-    const formattedCameras = trafficCameras.map(cam => ({
-      _id: cam.cameraId,
-      description: cam.description,
-      latitude: cam.latitude,
-      longitude: cam.longitude,
-      createdAt: cam.lastUpdated,
-      userId: { _id: 'system', username: 'System' },
-      pinType: 'traffic-camera',
-      verifications: [],
-      voteCount: 0,
-      comments: [],
-      imageUrl: cam.imageUrl
-    }));
-
-    pins = [...pins, ...formattedCameras];
-
-    const filteredPins = applyFilter(pins.filter(pin => pin.pinType !== 'traffic-camera'));
-    document.getElementById('alert-counter').textContent = `Current Alerts: ${pins.filter(pin => pin.pinType === 'alert').length}`;
-
-    Object.keys(markers).forEach(pinId => {
-      if (!pins.some(pin => pin._id === pinId) && !markers[pinId].path) {
-        markers[pinId].setMap(null);
-        delete markers[pinId];
-      }
-    });
-
-    const pinList = document.getElementById('pin-list');
-    if (!pinList) {
-      console.error('Pin list element not found in DOM!');
-      return;
-    }
-    pinList.innerHTML = `
-      <table class="pin-table">
-        <thead>
-          <tr>
-            <th class="sortable" onclick="fetchPins().then(() => sortTable(pins, 'Description'))">Description</th>
-            <th class="sortable" onclick="fetchPins().then(() => sortTable(pins, 'Latitude'))">Latitude</th>
-            <th class="sortable" onclick="fetchPins().then(() => sortTable(pins, 'Longitude'))">Longitude</th>
-            <th class="sortable" onclick="fetchPins().then(() => sortTable(pins, 'Posted By'))">Posted By</th>
-            <th class="sortable" onclick="fetchPins().then(() => sortTable(pins, 'Timestamp (ET)'))">Timestamp (ET)</th>
-            <th>Expires</th>
-            <th>Media</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-      <div id="pagination" class="pagination-container"></div>
-    `;
-
-    const tableBody = pinList.querySelector('tbody');
-    const start = (currentPage - 1) * pinsPerPage;
-    const end = start + pinsPerPage;
-    const paginatedPins = filteredPins.slice(start, end);
-    console.log('Paginated pins count:', paginatedPins.length);
-
-    if (paginatedPins.length === 0) {
-      console.warn('No pins to display after filtering/pagination');
-      tableBody.innerHTML = '<tr><td colspan="8">No pins available</td></tr>';
-    }
-
-    pins.forEach(pin => {
-      if (!markers[pin._id]) {
-        let icon;
-        if (pin.pinType === 'traffic-camera') {
-          icon = { url: 'https://img.icons8.com/?size=100&id=10208&format=png&color=000000', scaledSize: new google.maps.Size(32, 32) };
-          markers[pin._id] = new google.maps.Marker({
-            position: { lat: pin.latitude, lng: pin.longitude },
-            map: map,
-            title: pin.description,
-            icon: icon
-          });
-          markers[pin._id].addListener('click', () => {
-            const infoWindow = new google.maps.InfoWindow({
-              content: `
-                <div>
-                  <h3>${pin.description}</h3>
-                  <img src="${pin.imageUrl}" alt="Traffic Camera Image" style="width: 320px; height: 240px;" />
-                </div>
-              `
-            });
-            infoWindow.open(map, markers[pin._id]);
-          });
-        } else if (pin.description.toLowerCase().includes('cop') || pin.description.toLowerCase().includes('police')) {
-          icon = { url: 'https://img.icons8.com/?size=100&id=fHTZqkybfaA7&format=png&color=000000', scaledSize: new google.maps.Size(32, 32) };
-          markers[pin._id] = new google.maps.Marker({
-            position: { lat: pin.latitude, lng: pin.longitude },
-            map: map,
-            title: pin.description,
-            icon: icon
-          });
-        } else if (pin.pinType === 'business') {
-          icon = { url: 'https://img.icons8.com/?size=100&id=8312&format=png&color=FFD700', scaledSize: new google.maps.Size(32, 32) };
-          markers[pin._id] = new google.maps.Marker({
-            position: { lat: pin.latitude, lng: pin.longitude },
-            map: map,
-            title: pin.description,
-            icon: icon
-          });
-        } else {
-          markers[pin._id] = new google.maps.Marker({
-            position: { lat: pin.latitude, lng: pin.longitude },
-            map: map,
-            title: pin.description,
-            icon: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png'
-          });
-        }
-      }
-
-      if (pin.pinType === 'traffic-camera') return;
-
-      const isOwnPin = pin.userId._id === userId;
-      const canRemove = isAdmin || isOwnPin;
-      const isAlertPin = pin.pinType === 'alert';
-
-      console.log(`Pin ID: ${pin._id}, Type: ${pin.pinType}, IsAlert: ${isAlertPin}, CanRemove: ${canRemove}, Verifications: ${pin.verifications.length}, Votes: ${pin.voteCount}`);
-
-      const row = document.createElement('tr');
-      row.innerHTML = `
-        <td data-label="Description">${pin.description}</td>
-        <td data-label="Latitude">${pin.latitude.toFixed(4)}</td>
-        <td data-label="Longitude">${pin.longitude.toFixed(4)}</td>
-        <td data-label="Posted By">
-          <span onclick="viewProfile('${pin.userId._id}')" style="cursor: pointer; color: #3498db;">
-            ${pin.username || pin.userEmail}
-            <img src="https://img.icons8.com/small/16/visible.png" class="profile-view-icon">
-          </span>
-        </td>
-        <td data-label="Timestamp (ET)">${new Date(pin.createdAt).toLocaleString()}</td>
-        <td data-label="Expires">${pin.expiresAt ? new Date(pin.expiresAt).toLocaleString() : 'Permanent'}</td>
-        <td data-label="Media">
-          ${pin.media ? `
-            <img src="https://img.icons8.com/small/20/image.png" class="media-view-icon" onclick="viewMedia('${pin.media}')">
-          ` : 'N/A'}
-        </td>
-        <td data-label="Actions">
-          <div class="action-buttons">
-            <button class="standard-btn goto-btn" onclick="goToPinLocation(${pin.latitude}, ${pin.longitude})">Go To</button>
-            <button class="standard-btn remove-btn" onclick="${canRemove ? `removePin('${pin._id}')` : `alert('You can only remove your own pins unless you are an admin')`}" ${!canRemove ? 'disabled' : ''}>Remove</button>
-            ${isAlertPin ? `
-              <button class="standard-btn extend-btn" onclick="${canRemove ? `extendPin('${pin._id}')` : `alert('Only the pin owner or admin can extend')`}" ${!canRemove ? 'disabled' : ''}>Extend</button>
-              <button class="standard-btn verify-btn" onclick="verifyPin('${pin._id}')">Verify (${pin.verifications.length})</button>
-              <button class="standard-btn vote-btn" onclick="voteToRemove('${pin._id}')">Vote (${pin.voteCount}/8)</button>
-            ` : ''}
-            <button class="standard-btn comment-btn" onclick="showComments('${pin._id}')">Comments (${pin.comments.length})</button>
-          </div>
-          ${isMobile ? `<div class="action-btn" onclick='showToolsModal(${JSON.stringify(pin)})'>Actions</div>` : ''}
-        </td>
-      `;
-      console.log(`Rendered row for pin ${pin._id} with actions: ${row.querySelector('.action-buttons').innerHTML}`);
-      tableBody.appendChild(row);
-    });
-
-    const totalPages = Math.ceil(filteredPins.length / pinsPerPage);
-    currentPage = Math.min(currentPage, totalPages || 1);
-    const paginationContainer = document.getElementById('pagination');
-    paginationContainer.innerHTML = `
-      <button class="standard-btn prev-btn" onclick="changePage(-1)" ${currentPage === 1 ? 'disabled' : ''}>Previous</button>
-      <span>Page ${currentPage} of ${totalPages || 1}</span>
-      <button class="standard-btn next-btn" onclick="changePage(1)" ${currentPage === totalPages || totalPages === 0 ? 'disabled' : ''}>Next</button>
-    `;
-  } catch (err) {
-    console.error('Fetch pins error:', err);
-    alert('Error fetching pins: ' + err.message);
-  }
-}
-
-function changePage(delta) {
-  currentPage += delta;
-  fetchPins();
-}
-
-async function fetchWeatherAlerts() {
-  // Only fetch on desktop
-  if (isMobile) return;
-
-  try {
-    const response = await fetch('https://pinmap-website.onrender.com/weather');
-    const data = await response.json();
-    const weatherContent = document.getElementById('weather-content');
-    if (data.alerts && data.alerts.length > 0) {
-      weatherContent.className = 'alert';
-      weatherContent.textContent = data.alerts[0].event;
-      document.getElementById('weather-link').href = data.alerts[0].link || '#';
-    } else {
-      weatherContent.className = '';
-      weatherContent.textContent = 'No active weather alerts.';
-      document.getElementById('weather-link').href = '#';
-    }
-  } catch (err) {
-    console.error('Weather fetch error:', err);
-    document.getElementById('weather-content').textContent = 'Error loading weather alerts.';
-  }
-}
-
 function editProfile() {
-  if (isMobile) {
-    window.location.href = 'profile.html';
-  } else {
-    document.getElementById('map-container').style.display = 'none';
-    document.getElementById('profile-container').style.display = 'block';
-    document.getElementById('profile-view-container').style.display = 'none';
-    document.getElementById('media-view').style.display = 'none';
-    document.getElementById('messages-container').style.display = 'none';
-    document.getElementById('admin-panel').style.display = 'none';
-    fetchProfile();
-  }
-}
-
-async function fetchProfile() {
-  try {
-    const response = await fetch('https://pinmap-website.onrender.com/auth/profile', {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    if (response.ok) {
-      const profile = await response.json();
-      const preview = document.getElementById('profile-picture-preview');
-      preview.src = profile.profilePicture ? 
-        `https://pinmap-website.onrender.com${profile.profilePicture}` : 'https://via.placeholder.com/150';
-      preview.style.display = 'block';
-      document.getElementById('profile-username').value = profile.username || '';
-      document.getElementById('profile-birthdate').value = profile.birthdate ? profile.birthdate.split('T')[0] : '';
-      document.getElementById('profile-sex').value = profile.sex || '';
-      document.getElementById('profile-location').value = profile.location || '';
-    } else {
-      const errorData = await response.json();
-      alert(`Failed to fetch profile: ${errorData.message || 'Unknown error'}`);
-    }
-  } catch (err) {
-    console.error('Fetch profile error:', err);
-    alert('Error fetching profile');
-  }
-}
-
-async function updateProfile() {
-  const formData = new FormData();
-  const profilePicture = document.getElementById('profile-picture').files[0];
-  if (profilePicture) formData.append('profilePicture', profilePicture);
-  formData.append('username', document.getElementById('profile-username').value);
-  formData.append('birthdate', document.getElementById('profile-birthdate').value);
-  formData.append('sex', document.getElementById('profile-sex').value);
-  formData.append('location', document.getElementById('profile-location').value);
-
-  try {
-    const response = await fetch('https://pinmap-website.onrender.com/auth/profile', {
-      method: 'PUT',
-      headers: { 'Authorization': `Bearer ${token}` },
-      body: formData
-    });
-    if (response.ok) {
-      fetchProfileForUsername();
-      fetchProfile();
-      showMap();
-    } else {
-      const errorData = await response.json();
-      alert(errorData.message || 'Failed to update profile');
-    }
-  } catch (err) {
-    console.error('Update profile error:', err);
-    alert('Error updating profile');
-  }
-}
-
-function closeProfile() {
-  showMap();
-}
-
-async function viewProfile(userIdToView) {
-  currentProfileUserId = userIdToView;
-  try {
-    const response = await fetch(`https://pinmap-website.onrender.com/auth/profile/${userIdToView}`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    if (response.ok) {
-      const profile = await response.json();
-      const viewPic = document.getElementById('view-profile-picture');
-      viewPic.src = profile.profilePicture ? 
-        `https://pinmap-website.onrender.com${profile.profilePicture}` : 'https://via.placeholder.com/150';
-      viewPic.style.display = 'block';
-      document.getElementById('view-username').textContent = profile.username || profile.email;
-      document.getElementById('view-location').textContent = profile.location || 'Not set';
-      document.getElementById('view-pin-count').textContent = profile.totalPins || 0;
-      document.getElementById('view-pin-stars').innerHTML = '★'.repeat(Math.floor(profile.reputation / 10));
-      document.getElementById('view-reputation').textContent = profile.reputation || 0;
-      document.getElementById('view-badges').textContent = profile.badges ? profile.badges.join(', ') : 'None';
-      document.getElementById('map-container').style.display = 'none';
-      document.getElementById('profile-view-container').style.display = 'block';
-    } else {
-      const errorData = await response.json();
-      alert(`Failed to fetch user profile: ${errorData.message || 'Unknown error'}`);
-    }
-  } catch (err) {
-    console.error('View profile error:', err);
-    alert('Error viewing profile');
-  }
-}
-
-function closeProfileView() {
-  document.getElementById('profile-view-container').style.display = 'none';
-  document.getElementById('map-container').style.display = 'block';
-}
-
-async function upvoteUser() {
-  try {
-    const response = await fetch(`https://pinmap-website.onrender.com/auth/upvote/${currentProfileUserId}`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    if (response.ok) {
-      viewProfile(currentProfileUserId);
-    } else {
-      const errorData = await response.json();
-      alert(errorData.message || 'Failed to upvote user');
-    }
-  } catch (err) {
-    console.error('Upvote error:', err);
-    alert('Error upvoting user');
-  }
-}
-
-async function downvoteUser() {
-  try {
-    const response = await fetch(`https://pinmap-website.onrender.com/auth/downvote/${currentProfileUserId}`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    if (response.ok) {
-      viewProfile(currentProfileUserId);
-    } else {
-      const errorData = await response.json();
-      alert(errorData.message || 'Failed to downvote user');
-    }
-  } catch (err) {
-    console.error('Downvote error:', err);
-    alert('Error downvoting user');
-  }
-}
-
-async function sendPrivateMessage() {
-  const messageInput = document.getElementById('message-input');
-  const message = messageInput.value.trim();
-  if (!message) return alert('Message cannot be empty');
-  try {
-    const response = await fetch(`https://pinmap-website.onrender.com/auth/message/${currentProfileUserId}`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content: message })
-    });
-    if (response.ok) {
-      messageInput.value = '';
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'privateMessage', senderId: userId, recipientId: currentProfileUserId, content: message }));
-      }
-      alert('Message sent');
-    } else {
-      const errorData = await response.json();
-      alert(`Failed to send message: ${errorData.message || 'Unknown error'}`);
-    }
-  } catch (err) {
-    console.error('Send message error:', err);
-    alert('Error sending message');
-  }
-}
-
-async function fetchMessages(type = 'inbox') {
-  if (isMobile) {
-    window.location.href = 'messages.html';
-    return;
-  }
-  try {
-    const endpoint = type === 'inbox' ? 'inbox' : type === 'outbox' ? 'outbox' : 'trash';
-    const response = await fetch(`https://pinmap-website.onrender.com/auth/messages/${endpoint}`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    if (response.ok) {
-      const messages = await response.json();
-      const messagesList = document.getElementById('messages-list');
-      messagesList.innerHTML = '';
-      messages.forEach(msg => {
-        const msgDiv = document.createElement('div');
-        msgDiv.className = `message ${msg.read ? '' : 'unread'}`;
-        const sender = type === 'inbox' ? (msg.senderId.username || msg.senderId.email) : 'You';
-        const recipient = type === 'outbox' ? (msg.recipientId.username || msg.recipientId.email) : 'You';
-        msgDiv.innerHTML = `
-          <p><strong>${sender}</strong> to <strong>${recipient}</strong> (${new Date(msg.timestamp).toLocaleString()}):</p>
-          <p>${msg.content}</p>
-          <div class="message-controls">
-            ${type === 'inbox' ? `
-              <button class="standard-btn reply-btn" onclick="replyToMessage('${msg.senderId._id}', '${msg.content}')">Reply</button>
-              <button class="standard-btn delete-btn" onclick="deleteMessage('${msg._id}')">Delete</button>
-              <button class="standard-btn block-btn" onclick="blockUser('${msg.senderId._id}')">Block</button>
-            ` : type === 'outbox' ? `
-              <button class="standard-btn delete-btn" onclick="deleteMessage('${msg._id}')">Delete</button>
-            ` : `
-              <button class="standard-btn delete-btn" onclick="permanentlyDeleteMessage('${msg._id}')">Permanently Delete</button>
-            `}
-          </div>
-        `;
-        messagesList.appendChild(msgDiv);
-      });
-      document.getElementById('map-container').style.display = 'none';
-      document.getElementById('messages-container').style.display = 'block';
-      document.getElementById('inbox-btn').classList.toggle('active', type === 'inbox');
-      document.getElementById('outbox-btn').classList.toggle('active', type === 'outbox');
-      document.getElementById('trash-btn').classList.toggle('active', type === 'trash');
-    } else {
-      const errorData = await response.json();
-      alert(`Failed to fetch ${type}: ${errorData.message || 'Unknown error'}`);
-    }
-  } catch (err) {
-    console.error(`Fetch ${type} error:`, err);
-    alert(`Error fetching ${type}: ${err.message}`);
-  }
-}
-
-async function replyToMessage(recipientId, originalMessage) {
-  const reply = prompt('Enter your reply:', `Re: ${originalMessage.slice(0, 20)}...`);
-  if (!reply) return;
-  try {
-    const response = await fetch(`https://pinmap-website.onrender.com/auth/message/${recipientId}`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content: reply })
-    });
-    if (response.ok) {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'privateMessage', senderId: userId, recipientId, content: reply }));
-      }
-      alert('Reply sent');
-      fetchMessages('inbox');
-    } else {
-      const errorData = await response.json();
-      alert(`Failed to send reply: ${errorData.message || 'Unknown error'}`);
-    }
-  } catch (err) {
-    console.error('Reply error:', err);
-    alert('Error sending reply');
-  }
-}
-
-async function deleteMessage(messageId) {
-  if (!confirm('Are you sure you want to move this message to trash?')) return;
-  try {
-    const response = await fetch(`https://pinmap-website.onrender.com/auth/message/${messageId}/delete`, {
-      method: 'PUT',
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    if (response.ok) {
-      fetchMessages('inbox');
-    } else {
-      const errorData = await response.json();
-      alert(`Failed to delete message: ${errorData.message || 'Unknown error'}`);
-    }
-  } catch (err) {
-    console.error('Delete message error:', err);
-    alert('Error deleting message');
-  }
-}
-
-async function permanentlyDeleteMessage(messageId) {
-  if (!confirm('Are you sure you want to permanently delete this message? This action cannot be undone.')) return;
-  try {
-    const response = await fetch(`https://pinmap-website.onrender.com/auth/message/${messageId}`, {
-      method: 'DELETE',
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    if (response.ok) {
-      fetchMessages('trash');
-    } else {
-      const errorData = await response.json();
-      alert(`Failed to permanently delete message: ${errorData.message || 'Unknown error'}`);
-    }
-  } catch (err) {
-    console.error('Permanently delete message error:', err);
-    alert('Error permanently deleting message');
-  }
-}
-
-async function blockUser(userIdToBlock) {
-  if (!confirm('Are you sure you want to block this user? You will no longer receive messages from them.')) return;
-  try {
-    const response = await fetch(`https://pinmap-website.onrender.com/auth/block/${userIdToBlock}`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    if (response.ok) {
-      alert('User blocked successfully');
-      fetchMessages('inbox');
-    } else {
-      const errorData = await response.json();
-      alert(`Failed to block user: ${errorData.message || 'Unknown error'}`);
-    }
-  } catch (err) {
-    console.error('Block user error:', err);
-    alert('Error blocking user');
-  }
+  window.location.href = 'profile.html';
 }
 
 async function checkNewMessages() {
@@ -1706,10 +912,13 @@ function showAdminPanel() {
   window.location.href = 'admin.html';
 }
 
+function showAlertsPage() {
+  window.location.href = 'alerts.html';
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   const loginBtn = document.getElementById('login-btn');
   if (loginBtn) {
     loginBtn.addEventListener('click', login);
   }
-  fetchPins();
 });
