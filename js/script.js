@@ -471,6 +471,16 @@ function startMap() {
         map.setCenter(userLocation);
         updateUserLocation(userLocation.lat, userLocation.lng);
         startLocationTracking();
+
+        // Check if we need to center on a specific pin (from alerts page)
+        const centerLat = localStorage.getItem('centerLat');
+        const centerLng = localStorage.getItem('centerLng');
+        if (centerLat && centerLng) {
+          map.setCenter({ lat: parseFloat(centerLat), lng: parseFloat(centerLng) });
+          map.setZoom(15);
+          localStorage.removeItem('centerLat');
+          localStorage.removeItem('centerLng');
+        }
       },
       (error) => {
         console.error('Geolocation error:', error);
@@ -481,6 +491,40 @@ function startMap() {
   } else {
     map.setCenter({ lat: 33.0801, lng: -83.2321 });
   }
+
+  // Fetch pins to display on the map
+  fetch('https://pinmap-website.onrender.com/pins', {
+    headers: { 'Authorization': `Bearer ${token}` },
+  })
+  .then(response => response.json())
+  .then(pins => {
+    pins.forEach(pin => {
+      let icon;
+      if (pin.description.toLowerCase().includes('cop') || pin.description.toLowerCase().includes('police')) {
+        icon = { url: 'https://img.icons8.com/?size=100&id=fHTZqkybfaA7&format=png&color=000000', scaledSize: new google.maps.Size(32, 32) };
+      } else if (pin.pinType === 'business') {
+        icon = { url: 'https://img.icons8.com/?size=100&id=8312&format=png&color=FFD700', scaledSize: new google.maps.Size(32, 32) };
+      } else {
+        icon = { url: 'https://img.icons8.com/ios-filled/24/ffffff/warning-shield.png', scaledSize: new google.maps.Size(32, 32) };
+      }
+      const marker = new google.maps.Marker({
+        position: { lat: pin.latitude, lng: pin.longitude },
+        map: map,
+        title: pin.description,
+        icon: icon
+      });
+      markers[pin._id] = marker;
+
+      // Add click listener to navigate to alerts page
+      marker.addListener('click', () => {
+        window.location.href = 'alerts.html';
+      });
+    });
+  })
+  .catch(err => {
+    console.error('Error fetching pins for map:', err);
+    alert('Error loading pins on map.');
+  });
 
   map.addListener('click', (e) => {
     if (token) {
