@@ -1,0 +1,143 @@
+<!-- add-alert.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Alert - Milledgeville Alert Map</title>
+    <link rel="stylesheet" href="/css/style.css" type="text/css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="icon" href="data:,">
+</head>
+<body>
+    <div id="app">
+        <header>
+            <h1>Add Alert - Milledgeville Alert Map</h1>
+        </header>
+        <div class="add-alert-container">
+            <h2>Add Alert</h2>
+            <select id="pin-type">
+                <option value="">Select Alert Type</option>
+                <option value="cop">Cop</option>
+                <option value="shooting">Shooting</option>
+                <option value="fire">Fire</option>
+                <option value="roadblock">Roadblock</option>
+                <option value="wreck">Wreck/Crash</option>
+                <option value="business" id="business-option" style="display: none;">Business (Admin)</option>
+            </select>
+            <input type="text" id="description" placeholder="Alert Description" maxlength="100">
+            <input type="file" id="media-upload" accept="image/*,video/mp4,video/webm">
+            <button onclick="addPin()">Add Alert</button>
+            <button onclick="window.location.href='index.html'" class="close-btn">Cancel</button>
+        </div>
+    </div>
+    <script>
+        let token = localStorage.getItem('token');
+        let isAdmin = false;
+        let currentLatLng = JSON.parse(localStorage.getItem('currentLatLng')) || null;
+
+        if (!token) {
+            window.location.href = 'index.html';
+        } else {
+            try {
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                isAdmin = payload.email === 'imhoggbox@gmail.com';
+                const bizOption = document.getElementById('business-option');
+                if (bizOption) bizOption.style.display = isAdmin ? 'block' : 'none';
+            } catch (err) {
+                console.error('Invalid token:', err);
+                localStorage.removeItem('token');
+                window.location.href = 'index.html';
+            }
+        }
+
+        function getDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371000;
+            const toRad = (deg) => deg * Math.PI / 180;
+            const dLat = toRad(lat2 - lat1);
+            const dLon = toRad(lon2 - lon1);
+            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * c;
+        }
+
+        async function addPin() {
+            if (!currentLatLng) {
+                alert('No location selected. Please return to the map and select a location.');
+                return;
+            }
+
+            try {
+                const response = await fetch('https://pinmap-website.onrender.com/pins', {
+                    headers: { 'Authorization': `Bearer ${token}` },
+                });
+                if (response.status === 401) {
+                    localStorage.removeItem('token');
+                    window.location.href = 'index.html';
+                    return alert('Session expired. Please log in again.');
+                }
+                const pins = await response.json();
+                const tooClose = pins.some(pin => getDistance(currentLatLng.lat, currentLatLng.lng, pin.latitude, pin.longitude) < 304.8);
+                if (tooClose) {
+                    const closestPin = pins.find(pin => getDistance(currentLatLng.lat, currentLatLng.lng, pin.latitude, pin.longitude) < 304.8);
+                    alert(`Alert too close to existing pin at (${closestPin.latitude.toFixed(4)}, ${closestPin.longitude.toFixed(4)})`);
+                    localStorage.removeItem('currentLatLng');
+                    currentLatLng = null;
+                    return;
+                }
+
+                const pinType = document.getElementById('pin-type').value;
+                const descriptionInput = document.getElementById('description').value.trim();
+                const description = descriptionInput || pinType;
+                const mediaFile = document.getElementById('media-upload').files[0];
+                const formData = new FormData();
+                formData.append('latitude', currentLatLng.lat);
+                formData.append('longitude', currentLatLng.lng);
+                formData.append('description', description);
+                formData.append('pinType', pinType);
+                if (mediaFile) formData.append('media', mediaFile);
+
+                const postResponse = await fetch('https://pinmap-website.onrender.com/pins', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    body: formData,
+                });
+
+                if (postResponse.ok) {
+                    const ws = new WebSocket('wss://pinmap-website.onrender.com');
+                    ws.onopen = () => {
+                        const payload = JSON.parse(atob(token.split('.')[1]));
+                        ws.send(JSON.stringify({
+                            type: 'auth',
+                            userId: payload.id,
+                            email: payload.email,
+                            token: token
+                        }));
+                        ws.send(JSON.stringify({ type: 'newPin', pin: { latitude: currentLatLng.lat, longitude: currentLatLng.lng, description } }));
+                    };
+                    ws.onclose = () => {
+                        console.log('WebSocket disconnected');
+                    };
+                    ws.onerror = (err) => {
+                        console.error('WebSocket error:', err);
+                    };
+
+                    document.getElementById('pin-type').value = '';
+                    document.getElementById('description').value = '';
+                    document.getElementById('media-upload').value = '';
+                    localStorage.removeItem('currentLatLng');
+                    currentLatLng = null;
+                    window.location.href = 'alerts.html';
+                } else {
+                    const errorData = await postResponse.json();
+                    alert(`Failed to add alert: ${errorData.message || 'Unknown error'}`);
+                }
+            } catch (err) {
+                console.error('Add pin error:', err);
+                alert('Error adding alert. Check your media file (max 5MB, image only) and try again.');
+            }
+        }
+    </script>
+</body>
+</html>
