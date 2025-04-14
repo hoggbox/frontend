@@ -183,8 +183,20 @@ async function dropAlertAtCurrentLocation() {
       if (ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: 'newPin', pin: { latitude: currentLatLng.lat, longitude: currentLatLng.lng, description } }));
       }
-      speak('Alert dropped successfully.');
+      speak('Alert dropped successfully. Check the Alerts page to view it.');
       currentLatLng = null;
+
+      // Add marker to the map immediately
+      const marker = new google.maps.Marker({
+        position: { lat: position.lat(), lng: position.lng() },
+        map: map,
+        title: description,
+        icon: { url: 'https://img.icons8.com/ios-filled/24/ffffff/warning-shield.png', scaledSize: new google.maps.Size(32, 32) }
+      });
+      marker.addListener('click', () => {
+        window.location.href = 'alerts.html';
+      });
+      markers[Date.now().toString()] = marker; // Temporary ID until fetched from server
     } else {
       const errorData = await postResponse.json();
       speak(`Failed to drop alert: ${errorData.message || 'Unknown error'}`);
@@ -196,13 +208,142 @@ async function dropAlertAtCurrentLocation() {
 }
 
 function initMap() {  
+  // More detailed map style with landmarks and POIs
+  const detailedMapStyle = [
+    {
+      "elementType": "geometry",
+      "stylers": [
+        { "color": "#242f3e" }
+      ]
+    },
+    {
+      "elementType": "labels.text.fill",
+      "stylers": [
+        { "color": "#746855" }
+      ]
+    },
+    {
+      "elementType": "labels.text.stroke",
+      "stylers": [
+        { "color": "#242f3e" }
+      ]
+    },
+    {
+      "featureType": "administrative.locality",
+      "elementType": "labels.text.fill",
+      "stylers": [
+        { "color": "#d59563" }
+      ]
+    },
+    {
+      "featureType": "poi",
+      "elementType": "labels.text.fill",
+      "stylers": [
+        { "color": "#d59563" }
+      ]
+    },
+    {
+      "featureType": "poi.park",
+      "elementType": "geometry",
+      "stylers": [
+        { "color": "#263c3f" }
+      ]
+    },
+    {
+      "featureType": "poi.park",
+      "elementType": "labels.text.fill",
+      "stylers": [
+        { "color": "#6b9a76" }
+      ]
+    },
+    {
+      "featureType": "road",
+      "elementType": "geometry",
+      "stylers": [
+        { "color": "#38414e" }
+      ]
+    },
+    {
+      "featureType": "road",
+      "elementType": "geometry.stroke",
+      "stylers": [
+        { "color": "#212a37" }
+      ]
+    },
+    {
+      "featureType": "road",
+      "elementType": "labels.text.fill",
+      "stylers": [
+        { "color": "#9ca5b3" }
+      ]
+    },
+    {
+      "featureType": "road.highway",
+      "elementType": "geometry",
+      "stylers": [
+        { "color": "#746855" }
+      ]
+    },
+    {
+      "featureType": "road.highway",
+      "elementType": "geometry.stroke",
+      "stylers": [
+        { "color": "#1f2835" }
+      ]
+    },
+    {
+      "featureType": "road.highway",
+      "elementType": "labels.text.fill",
+      "stylers": [
+        { "color": "#f3d19c" }
+      ]
+    },
+    {
+      "featureType": "transit",
+      "elementType": "geometry",
+      "stylers": [
+        { "color": "#2f3948" }
+      ]
+    },
+    {
+      "featureType": "transit.station",
+      "elementType": "labels.text.fill",
+      "stylers": [
+        { "color": "#d59563" }
+      ]
+    },
+    {
+      "featureType": "water",
+      "elementType": "geometry",
+      "stylers": [
+        { "color": "#17263c" }
+      ]
+    },
+    {
+      "featureType": "water",
+      "elementType": "labels.text.fill",
+      "stylers": [
+        { "color": "#515c6d" }
+      ]
+    },
+    {
+      "featureType": "water",
+      "elementType": "labels.text.stroke",
+      "stylers": [
+        { "color": "#17263c" }
+      ]
+    }
+  ];
+
   map = new google.maps.Map(document.getElementById('map'), {
-    zoom: 12,
-    styles: [
-      { featureType: "all", elementType: "labels.text.fill", stylers: [{ color: "#2c3e50" }] },
-      { featureType: "all", elementType: "labels.text.stroke", stylers: [{ color: "#ffffff" }, { weight: 2 }] }
-    ]
+    zoom: 14, // Increased zoom for more detail
+    styles: detailedMapStyle,
+    zoomControl: true, // Add zoom controls
+    mapTypeControl: true, // Allow switching map types (e.g., satellite)
+    streetViewControl: true, // Enable Street View
+    fullscreenControl: true, // Enable fullscreen option
   });
+
   geocoder = new google.maps.Geocoder();
   directionsService = new google.maps.DirectionsService();
   directionsRenderer = new google.maps.DirectionsRenderer({
@@ -213,6 +354,32 @@ function initMap() {
 
   const trafficLayer = new google.maps.TrafficLayer();
   trafficLayer.setMap(map);
+
+  // Add a map legend
+  const legend = document.createElement('div');
+  legend.className = 'map-legend';
+  legend.innerHTML = `
+    <div class="legend-item"><span style="background: #ff0000;"></span> Police</div>
+    <div class="legend-item"><span style="background: #ffd700;"></span> Business</div>
+    <div class="legend-item"><span style="background: #ffeb3b;"></span> Alert</div>
+    <div class="legend-item"><span style="background: #0000ff;"></span> Your Location</div>
+  `;
+  map.controls[google.maps.ControlPosition.RIGHT_BOTTOM].push(legend);
+
+  // Add a button to center on user's location
+  const locationButton = document.createElement('button');
+  locationButton.className = 'custom-map-control';
+  locationButton.innerHTML = '📍';
+  locationButton.title = 'Center on My Location';
+  locationButton.addEventListener('click', () => {
+    if (userLocationMarker) {
+      map.panTo(userLocationMarker.getPosition());
+      map.setZoom(15);
+    } else {
+      alert('Location not available. Please enable location services.');
+    }
+  });
+  map.controls[google.maps.ControlPosition.RIGHT_TOP].push(locationButton);
 
   isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
@@ -233,8 +400,6 @@ function initMap() {
       if (isMobile) {
         document.getElementById('mobile-admin-btn').style.display = isAdmin ? 'inline-block' : 'none';
       }
-      const bizOption = document.querySelector('#pin-type option[value="business"]');
-      if (bizOption) bizOption.style.display = isAdmin ? 'block' : 'none';
 
       setupMenuDropdown();
 
@@ -262,8 +427,7 @@ function initMap() {
         fab.className = 'fab-pin';
         fab.innerHTML = '+';
         fab.addEventListener('click', () => {
-          const pinControls = document.querySelector('.pin-controls');
-          pinControls.classList.toggle('active');
+          window.location.href = 'add-alert.html';
         });
         document.body.appendChild(fab);
 
@@ -294,7 +458,7 @@ function initMap() {
     showLogin();
   }
 
-  document.getElementById('profile-picture').addEventListener('change', (event) => {
+  document.getElementById('profile-picture')?.addEventListener('change', (event) => {
     const file = event.target.files[0];
     if (file) {
       const reader = new FileReader();
@@ -429,7 +593,8 @@ function setupWebSocket() {
     } else if (data.type === 'privateMessage') {
       checkNewMessages();
     } else if (data.type === 'newPin') {
-      // No longer need to fetch pins here since pin-list is on a separate page
+      // Refresh pins on the map
+      refreshMapPins();
     } else if (data.type === 'newComment') {
       // Pin comments are handled on the alerts page
     }
@@ -492,12 +657,39 @@ function startMap() {
     map.setCenter({ lat: 33.0801, lng: -83.2321 });
   }
 
-  // Fetch pins to display on the map
-  fetch('https://pinmap-website.onrender.com/pins', {
-    headers: { 'Authorization': `Bearer ${token}` },
-  })
-  .then(response => response.json())
-  .then(pins => {
+  // Initial load of pins
+  refreshMapPins();
+
+  map.addListener('click', (e) => {
+    if (token) {
+      currentLatLng = { lat: e.latLng.lat(), lng: e.latLng.lng() };
+      new google.maps.Marker({
+        position: currentLatLng,
+        map: map,
+        icon: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png',
+      });
+    }
+  });
+}
+
+async function refreshMapPins() {
+  // Clear existing markers except user location
+  Object.keys(markers).forEach(key => {
+    if (markers[key].marker !== userLocationMarker) {
+      markers[key].marker.setMap(null);
+    }
+  });
+  markers = {};
+
+  try {
+    const response = await fetch('https://pinmap-website.onrender.com/pins', {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (response.status === 401) {
+      signOut();
+      return alert('Session expired. Please log in again.');
+    }
+    const pins = await response.json();
     pins.forEach(pin => {
       let icon;
       if (pin.description.toLowerCase().includes('cop') || pin.description.toLowerCase().includes('police')) {
@@ -513,41 +705,14 @@ function startMap() {
         title: pin.description,
         icon: icon
       });
-      markers[pin._id] = marker;
-
-      // Add click listener to navigate to alerts page
+      markers[pin._id] = { marker };
       marker.addListener('click', () => {
         window.location.href = 'alerts.html';
       });
     });
-  })
-  .catch(err => {
-    console.error('Error fetching pins for map:', err);
+  } catch (err) {
+    console.error('Error refreshing pins:', err);
     alert('Error loading pins on map.');
-  });
-
-  map.addListener('click', (e) => {
-    if (token) {
-      currentLatLng = { lat: e.latLng.lat(), lng: e.latLng.lng() };
-      new google.maps.Marker({
-        position: currentLatLng,
-        map: map,
-        icon: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png',
-      });
-    }
-  });
-}
-
-function toggleTracking() {
-  trackingPaused = !trackingPaused;
-  const btn = document.getElementById('toggle-tracking-btn');
-  btn.textContent = `Tracking: ${trackingPaused ? 'Off' : 'On'}`;
-  btn.classList.toggle('paused', trackingPaused);
-  if (trackingPaused && watchId) {
-    navigator.geolocation.clearWatch(watchId);
-    watchId = undefined;
-  } else if (!trackingPaused) {
-    startLocationTracking();
   }
 }
 
@@ -854,7 +1019,7 @@ function signOut() {
   if (ws) ws.close();
   Object.values(markers).forEach(user => {
     user.marker.setMap(null);
-    user.polyline.setMap(null);
+    user.polyline?.setMap(null);
   });
   markers = {};
   showLogin();
@@ -863,67 +1028,6 @@ function signOut() {
   if (isMobile) {
     document.getElementById('mobile-messages-btn').textContent = 'Messages';
   }
-}
-
-async function addPin() {
-  if (!currentLatLng) return alert('Click the map to select a location!');
-  try {
-    const response = await fetch('https://pinmap-website.onrender.com/pins', {
-      headers: { 'Authorization': `Bearer ${token}` },
-    });
-    if (response.status === 401) {
-      signOut();
-      return alert('Session expired. Please log in again.');
-    }
-    const pins = await response.json();
-    const tooClose = pins.some(pin => getDistance(currentLatLng.lat, currentLatLng.lng, pin.latitude, pin.longitude) < 304.8);
-    if (tooClose) {
-      const closestPin = pins.find(pin => getDistance(currentLatLng.lat, currentLatLng.lng, pin.latitude, pin.longitude) < 304.8);
-      alert(`Alert too close to existing pin at (${closestPin.latitude.toFixed(4)}, ${closestPin.longitude.toFixed(4)})`);
-      currentLatLng = null;
-      return;
-    }
-
-    const pinType = document.getElementById('pin-type').value;
-    const descriptionInput = document.getElementById('description').value.trim();
-    const description = descriptionInput || pinType;
-    const mediaFile = document.getElementById('media-upload').files[0];
-    const formData = new FormData();
-    formData.append('latitude', currentLatLng.lat);
-    formData.append('longitude', currentLatLng.lng);
-    formData.append('description', description);
-    formData.append('pinType', pinType);
-    if (mediaFile) formData.append('media', mediaFile);
-
-    const postResponse = await fetch('https://pinmap-website.onrender.com/pins', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}` },
-      body: formData,
-    });
-
-    if (postResponse.ok) {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'newPin', pin: { latitude: currentLatLng.lat, longitude: currentLatLng.lng, description } }));
-      }
-      document.getElementById('pin-type').value = '';
-      document.getElementById('description').value = '';
-      document.getElementById('media-upload').value = '';
-      currentLatLng = null;
-      if (isMobile) {
-        document.querySelector('.pin-controls').classList.remove('active');
-      }
-    } else {
-      const errorData = await postResponse.json();
-      alert(`Failed to add alert: ${errorData.message || 'Unknown error'}`);
-    }
-  } catch (err) {
-    console.error('Add pin error:', err);
-    alert('Error adding alert. Check your media file (max 5MB, image only) and try again.');
-  }
-}
-
-function editProfile() {
-  window.location.href = 'profile.html';
 }
 
 async function checkNewMessages() {
