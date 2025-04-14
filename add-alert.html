@@ -34,7 +34,7 @@
     <script>
         let token = localStorage.getItem('token');
         let isAdmin = false;
-        let currentLatLng = JSON.parse(localStorage.getItem('currentLatLng')) || null;
+        let currentLatLng = null;
 
         if (!token) {
             window.location.href = 'index.html';
@@ -63,8 +63,27 @@
         }
 
         async function addPin() {
+            // Fetch the user's current location
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    async (position) => {
+                        currentLatLng = { lat: position.coords.latitude, lng: position.coords.longitude };
+                        await submitPin();
+                    },
+                    (error) => {
+                        console.error('Geolocation error:', error);
+                        alert('Unable to get your current location. Please enable location services and try again.');
+                    },
+                    { enableHighAccuracy: true, timeout: 5000 }
+                );
+            } else {
+                alert('Geolocation is not supported by your browser. Please enable location services or use a different device.');
+            }
+        }
+
+        async function submitPin() {
             if (!currentLatLng) {
-                alert('No location selected. Please return to the map and select a location.');
+                alert('Location not available. Please try again.');
                 return;
             }
 
@@ -82,7 +101,6 @@
                 if (tooClose) {
                     const closestPin = pins.find(pin => getDistance(currentLatLng.lat, currentLatLng.lng, pin.latitude, pin.longitude) < 304.8);
                     alert(`Alert too close to existing pin at (${closestPin.latitude.toFixed(4)}, ${closestPin.longitude.toFixed(4)})`);
-                    localStorage.removeItem('currentLatLng');
                     currentLatLng = null;
                     return;
                 }
@@ -126,7 +144,6 @@
                     document.getElementById('pin-type').value = '';
                     document.getElementById('description').value = '';
                     document.getElementById('media-upload').value = '';
-                    localStorage.removeItem('currentLatLng');
                     currentLatLng = null;
                     window.location.href = 'alerts.html';
                 } else {
