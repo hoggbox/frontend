@@ -1,5 +1,3 @@
-// js/script.js
-
 let token;
 let currentLatLng;
 let userId;
@@ -19,11 +17,13 @@ let directionsRenderer;
 let isMobile = false;
 let lastSpeed = 0;
 let speedLimit = 'N/A';
-let voiceNavigationEnabled = false;
+let voiceNavigationEnabled = true;
 let currentDestination = null;
 let currentRoute = null;
 let lastSpokenInstruction = null;
-let recognition; // For voice commands
+let recognition;
+let isRecording = false;
+const notifiedPins = new Set(); // Track notified pins to prevent duplicates
 
 function getDistance(lat1, lon1, lat2, lon2) {
   const R = 6371000;
@@ -82,16 +82,14 @@ function speak(text) {
 }
 
 function speakNextInstruction() {
-  if (!voiceNavigationEnabled || !currentRoute) return;
+  if (!voiceNavigationEnabled || !currentRoute || !userLocationMarker) return;
 
   const steps = currentRoute.routes[0].legs[0].steps;
-  if (!userLocationMarker) return;
-
   const userPos = userLocationMarker.getPosition();
   let closestStep = null;
   let closestDistance = Infinity;
 
-  steps.forEach((step, index) => {
+  steps.forEach((step) => {
     const stepPos = step.start_location;
     const distance = google.maps.geometry.spherical.computeDistanceBetween(userPos, stepPos);
     if (distance < closestDistance && distance < 500) {
@@ -109,408 +107,246 @@ function speakNextInstruction() {
   setTimeout(speakNextInstruction, 10000);
 }
 
-function initVoiceCommands() {
-  if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    recognition = new SpeechRecognition();
-    recognition.continuous = true;
+function toggleVoiceRecognition() {
+  if (!('webkitSpeechRecognition' in window)) {
+    alert('Speech recognition not supported in this browser.');
+    return;
+  }
+
+  if (!recognition) {
+    recognition = new webkitSpeechRecognition();
+    recognition.continuous = false;
     recognition.interimResults = false;
     recognition.lang = 'en-US';
 
-    recognition.onresult = (event) => {
-      const transcript = event.results[event.results.length - 1][0].transcript.trim().toLowerCase();
-      console.log('Voice command detected:', transcript);
-      if (transcript.includes('drop alert')) {
-        speak('Dropping alert at your current location.');
-        dropAlertAtCurrentLocation();
+    recognition.onresult = async (event) => {
+      const transcript = event.results[0][0].transcript.toLowerCase();
+      console.log('Voice command:', transcript);
+      let description = '';
+      if (transcript.includes('drop a cop alert') || transcript.includes('add cop alert')) {
+        description = 'Cop';
+      } else if (transcript.includes('drop a wreck alert') || transcript.includes('add wreck alert')) {
+        description = 'Wreck/Crash';
+      } else if (transcript.includes('drop a shooting alert') || transcript.includes('add shooting alert')) {
+        description = 'Shooting';
+      } else if (transcript.includes('drop a fire alert') || transcript.includes('add fire alert')) {
+        description = 'Fire';
+      } else if (transcript.includes('drop a roadblock alert') || transcript.includes('add roadblock alert')) {
+        description = 'Roadblock';
+      } else {
+        alert('Unrecognized command. Say "Drop a cop alert" or similar.');
+        return;
       }
-    };
-
-    recognition.onend = () => {
-      if (voiceNavigationEnabled) {
-        recognition.start();
-      }
+      await addVoiceAlert(description);
+      stopVoiceRecognition();
     };
 
     recognition.onerror = (event) => {
       console.error('Speech recognition error:', event.error);
+      stopVoiceRecognition();
     };
+
+    recognition.onend = () => {
+      stopVoiceRecognition();
+    };
+  }
+
+  if (isRecording) {
+    stopVoiceRecognition();
   } else {
-    console.warn('Speech recognition not supported in this browser.');
+    isRecording = true;
+    document.querySelector('.mic-btn').classList.add('active');
+    recognition.start();
   }
 }
 
-async function dropAlertAtCurrentLocation() {
+function stopVoiceRecognition() {
+  if (recognition && isRecording) {
+    recognition.stop();
+    isRecording = false;
+    document.querySelector('.mic-btn').classList.remove('active');
+  }
+}
+
+async function addVoiceAlert(description) {
   if (!userLocationMarker) {
-    speak('Unable to drop alert. Current location not available. Please enable location services.');
+    alert('Waiting for your location...');
     return;
   }
 
   const position = userLocationMarker.getPosition();
-  currentLatLng = { lat: position.lat(), lng: position.lng() };
-  
+  const latitude = position.lat();
+  const longitude = position.lng();
+
   try {
     const response = await fetch('https://pinmap-website.onrender.com/pins', {
-      headers: { 'Authorization': `Bearer ${token}` },
-    });
-    if (response.status === 401) {
-      signOut();
-      return speak('Session expired. Please log in again.');
-    }
-    const pins = await response.json();
-    const tooClose = pins.some(pin => getDistance(currentLatLng.lat, currentLatLng.lng, pin.latitude, pin.longitude) < 304.8);
-    if (tooClose) {
-      const closestPin = pins.find(pin => getDistance(currentLatLng.lat, currentLatLng.lng, pin.latitude, pin.longitude) < 304.8);
-      speak(`Alert too close to existing pin at latitude ${closestPin.latitude.toFixed(4)}, longitude ${closestPin.longitude.toFixed(4)}`);
-      currentLatLng = null;
-      return;
-    }
-
-    const description = 'Voice-Dropped Alert'; // Default description for voice command
-    const formData = new FormData();
-    formData.append('latitude', currentLatLng.lat);
-    formData.append('longitude', currentLatLng.lng);
-    formData.append('description', description);
-    formData.append('pinType', 'alert');
-
-    const postResponse = await fetch('https://pinmap-website.onrender.com/pins', {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}` },
-      body: formData,
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        latitude,
+        longitude,
+        description,
+        pinType: 'alert'
+      })
     });
 
-    if (postResponse.ok) {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'newPin', pin: { latitude: currentLatLng.lat, longitude: currentLatLng.lng, description } }));
+    if (response.ok) {
+      const pin = await response.json();
+      if (ws.readyState === WebSocket.OPEN && !notifiedPins.has(pin._id)) {
+        ws.send(JSON.stringify({
+          type: 'voiceAlert',
+          userId,
+          description,
+          latitude,
+          longitude,
+          _id: pin._id
+        }));
+        notifiedPins.add(pin._id);
       }
-      speak('Alert dropped successfully. Check the Alerts page to view it.');
-      currentLatLng = null;
-
-      // Add marker to the map immediately
-      const marker = new google.maps.Marker({
-        position: { lat: position.lat(), lng: position.lng() },
-        map: map,
-        title: description,
-        icon: { url: 'https://img.icons8.com/ios-filled/24/ffffff/warning-shield.png', scaledSize: new google.maps.Size(32, 32) }
-      });
-      marker.addListener('click', () => {
-        window.location.href = 'alerts.html';
-      });
-      markers[Date.now().toString()] = marker; // Temporary ID until fetched from server
+      speak('Alert added successfully');
+      fetchPins();
     } else {
-      const errorData = await postResponse.json();
-      speak(`Failed to drop alert: ${errorData.message || 'Unknown error'}`);
+      const errorData = await response.json();
+      alert(`Failed to add alert: ${errorData.message}`);
     }
   } catch (err) {
-    console.error('Voice drop alert error:', err);
-    speak('Error dropping alert. Please try again.');
+    console.error('Voice alert error:', err);
+    alert('Error adding voice alert');
   }
 }
 
-// Explicitly make initMap a global function
-async function initMap() {
-  try {
-    // More detailed map style with landmarks and POIs
-    const detailedMapStyle = [
+function initMap() {
+  map = new google.maps.Map(document.getElementById('map'), {
+    zoom: 12,
+    styles: [
       {
-        "elementType": "geometry",
+        "featureType": "all",
+        "elementType": "geometry.fill",
         "stylers": [
-          { "color": "#242f3e" }
+          { "color": "#ffffff" }
         ]
       },
       {
-        "elementType": "labels.text.fill",
+        "featureType": "road",
+        "elementType": "geometry.stroke",
         "stylers": [
-          { "color": "#746855" }
+          { "color": "#d3d3d3" }
         ]
       },
       {
-        "elementType": "labels.text.stroke",
+        "featureType": "road.highway",
+        "elementType": "geometry.fill",
         "stylers": [
-          { "color": "#242f3e" }
+          { "color": "#00adef" }
         ]
       },
       {
-        "featureType": "administrative.locality",
-        "elementType": "labels.text.fill",
+        "featureType": "road.arterial",
+        "elementType": "geometry.fill",
         "stylers": [
-          { "color": "#d59563" }
+          { "color": "#e0e0e0" }
+        ]
+      },
+      {
+        "featureType": "water",
+        "elementType": "geometry.fill",
+        "stylers": [
+          { "color": "#b9d3c2" }
         ]
       },
       {
         "featureType": "poi",
+        "elementType": "geometry.fill",
+        "stylers": [
+          { "color": "#f0f0f0" }
+        ]
+      },
+      {
+        "featureType": "all",
         "elementType": "labels.text.fill",
         "stylers": [
-          { "color": "#d59563" }
+          { "color": "#333333" }
         ]
       },
       {
-        "featureType": "poi.park",
-        "elementType": "geometry",
-        "stylers": [
-          { "color": "#263c3f" }
-        ]
-      },
-      {
-        "featureType": "poi.park",
-        "elementType": "labels.text.fill",
-        "stylers": [
-          { "color": "#6b9a76" }
-        ]
-      },
-      {
-        "featureType": "road",
-        "elementType": "geometry",
-        "stylers": [
-          { "color": "#38414e" }
-        ]
-      },
-      {
-        "featureType": "road",
-        "elementType": "geometry.stroke",
-        "stylers": [
-          { "color": "#212a37" }
-        ]
-      },
-      {
-        "featureType": "road",
-        "elementType": "labels.text.fill",
-        "stylers": [
-          { "color": "#9ca5b3" }
-        ]
-      },
-      {
-        "featureType": "road.highway",
-        "elementType": "geometry",
-        "stylers": [
-          { "color": "#746855" }
-        ]
-      },
-      {
-        "featureType": "road.highway",
-        "elementType": "geometry.stroke",
-        "stylers": [
-          { "color": "#1f2835" }
-        ]
-      },
-      {
-        "featureType": "road.highway",
-        "elementType": "labels.text.fill",
-        "stylers": [
-          { "color": "#f3d19c" }
-        ]
-      },
-      {
-        "featureType": "transit",
-        "elementType": "geometry",
-        "stylers": [
-          { "color": "#2f3948" }
-        ]
-      },
-      {
-        "featureType": "transit.station",
-        "elementType": "labels.text.fill",
-        "stylers": [
-          { "color": "#d59563" }
-        ]
-      },
-      {
-        "featureType": "water",
-        "elementType": "geometry",
-        "stylers": [
-          { "color": "#17263c" }
-        ]
-      },
-      {
-        "featureType": "water",
-        "elementType": "labels.text.fill",
-        "stylers": [
-          { "color": "#515c6d" }
-        ]
-      },
-      {
-        "featureType": "water",
+        "featureType": "all",
         "elementType": "labels.text.stroke",
         "stylers": [
-          { "color": "#17263c" }
+          { "color": "#ffffff" },
+          { "weight": 2 }
         ]
       }
-    ];
+    ]
+  });
+  geocoder = new google.maps.Geocoder();
+  directionsService = new google.maps.DirectionsService();
+  directionsRenderer = new google.maps.DirectionsRenderer({
+    map: map,
+    suppressMarkers: true,
+    polylineOptions: { strokeColor: '#00adef', strokeWeight: 6 }
+  });
 
-    map = new google.maps.Map(document.getElementById('map'), {
-      zoom: 14, // Increased zoom for more detail
-      styles: detailedMapStyle,
-      zoomControl: true, // Add zoom controls
-      mapTypeControl: true, // Allow switching map types (e.g., satellite)
-      streetViewControl: true, // Enable Street View
-      fullscreenControl: true, // Enable fullscreen option
-    });
+  const trafficLayer = new google.maps.TrafficLayer();
+  trafficLayer.setMap(map);
 
-    geocoder = new google.maps.Geocoder();
-    directionsService = new google.maps.DirectionsService();
-    directionsRenderer = new google.maps.DirectionsRenderer({
-      map: map,
-      suppressMarkers: true,
-      polylineOptions: { strokeColor: '#1E90FF', strokeWeight: 5 }
-    });
+  isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
-    const trafficLayer = new google.maps.TrafficLayer();
-    trafficLayer.setMap(map);
+  token = localStorage.getItem('token');
+  if (token) {
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      userId = payload.id;
+      isAdmin = payload.email === 'imhoggbox@gmail.com';
+      fetchProfileForUsername();
+      showMap();
+      startMap();
+      setupWebSocket();
+      subscribeToPush();
 
-    // Add a map legend
-    const legend = document.createElement('div');
-    legend.className = 'map-legend';
-    legend.innerHTML = `
-      <div class="legend-item"><span style="background: #ff0000;"></span> Police</div>
-      <div class="legend-item"><span style="background: #ffd700;"></span> Business</div>
-      <div class="legend-item"><span style="background: #ffeb3b;"></span> Alert</div>
-      <div class="legend-item"><span style="background: #0000ff;"></span> Your Location</div>
-    `;
-    map.controls[google.maps.ControlPosition.RIGHT_BOTTOM].push(legend);
-
-    // Add a button to center on user's location
-    const locationButton = document.createElement('button');
-    locationButton.className = 'custom-map-control';
-    locationButton.innerHTML = '📍';
-    locationButton.title = 'Center on My Location';
-    locationButton.addEventListener('click', () => {
-      if (userLocationMarker) {
-        map.panTo(userLocationMarker.getPosition());
-        map.setZoom(15);
-      } else {
-        alert('Location not available. Please enable location services.');
-      }
-    });
-    map.controls[google.maps.ControlPosition.RIGHT_TOP].push(locationButton);
-
-    isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
-
-    token = localStorage.getItem('token');
-    if (token) {
-      // Validate token by making a test request
-      try {
-        const response = await fetch('https://pinmap-website.onrender.com/auth/validate', {
-          headers: { 'Authorization': `Bearer ${token}` }
+      const menuBtn = document.getElementById('menu-btn');
+      const menuDropdown = document.getElementById('menu-dropdown');
+      if (menuBtn && menuDropdown) {
+        menuBtn.addEventListener('click', () => {
+          menuDropdown.classList.toggle('show');
         });
-        if (response.status === 401) {
-          console.log('Token is invalid or expired on init. Clearing token and redirecting to login.');
-          localStorage.removeItem('token');
-          token = null;
-          showLogin();
-          return;
-        }
-        if (!response.ok) {
-          throw new Error(`Token validation failed: ${response.status} ${response.statusText}`);
-        }
-
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        userId = payload.id;
-        isAdmin = payload.email === 'imhoggbox@gmail.com';
-        console.log('Logged in as:', payload.email, 'Admin:', isAdmin);
-        fetchProfileForUsername();
-        showMap();
-        startMap();
-        setupWebSocket();
-        checkNewMessages();
-        subscribeToPush();
-        document.getElementById('admin-btn').style.display = isAdmin ? 'inline-block' : 'none';
-        if (isMobile) {
-          document.getElementById('mobile-admin-btn').style.display = isAdmin ? 'inline-block' : 'none';
-        }
-
-        setupMenuDropdown();
-
-        if (isMobile) {
-          const hud = document.createElement('div');
-          hud.className = 'gps-hud';
-          hud.innerHTML = `
-            <div class="speed-container">
-              <div class="speed-icon"></div>
-              <p class="speed">Speed: 0 mph</p>
-            </div>
-            <p class="street">Street: Not set</p>
-            <div class="alert-container">
-              <div class="alert-icon"></div>
-              <p class="alert">No alerts</p>
-            </div>
-            <div class="eta-distance">
-              <p class="eta">ETA: --</p>
-              <p class="distance">Distance: --</p>
-            </div>
-          `;
-          document.getElementById('map-container').appendChild(hud);
-
-          const fab = document.createElement('div');
-          fab.className = 'fab-pin';
-          fab.innerHTML = '+';
-          fab.addEventListener('click', () => {
-            // Store the current location to use in add-alert.html
-            if (userLocationMarker) {
-              const position = userLocationMarker.getPosition();
-              localStorage.setItem('currentLatLng', JSON.stringify({ lat: position.lat(), lng: position.lng() }));
-              window.location.href = 'add-alert.html';
-            } else {
-              alert('Location not available. Please enable location services and try again.');
-            }
-          });
-          document.body.appendChild(fab);
-
-          const voiceToggle = document.createElement('div');
-          voiceToggle.className = 'voice-toggle';
-          voiceToggle.innerHTML = '🎙️';
-          voiceToggle.addEventListener('click', () => {
-            voiceNavigationEnabled = !voiceNavigationEnabled;
-            voiceToggle.classList.toggle('active', voiceNavigationEnabled);
-            if (voiceNavigationEnabled) {
-              speak('Voice navigation enabled');
-              speakNextInstruction();
-              if (recognition) recognition.start();
-            } else {
-              speak('Voice navigation disabled');
-              if (recognition) recognition.stop();
-            }
-          });
-          document.body.appendChild(voiceToggle);
-
-          initVoiceCommands();
-        }
-      } catch (err) {
-        console.error('Initial token validation error:', err);
-        localStorage.removeItem('token');
-        token = null;
-        showLogin();
       }
-    } else {
-      showLogin();
+
+      const hud = document.createElement('div');
+      hud.className = 'gps-hud';
+      hud.innerHTML = `
+        <p class="speed">Speed: 0 mph</p>
+        <p class="destination">Destination: Not set</p>
+        <p class="eta">ETA: --</p>
+        <p class="distance">Distance: --</p>
+      `;
+      document.getElementById('map-container').appendChild(hud);
+
+      const alertsBtn = document.createElement('div');
+      alertsBtn.className = 'alerts-btn';
+      alertsBtn.innerHTML = '🚨';
+      alertsBtn.addEventListener('click', showAlertsPage);
+      document.body.appendChild(alertsBtn);
+
+      const plusBtn = document.createElement('div');
+      plusBtn.className = 'plus-btn';
+      plusBtn.innerHTML = '+';
+      plusBtn.addEventListener('click', showAddAlertPage);
+      document.body.appendChild(plusBtn);
+
+      const micBtn = document.createElement('div');
+      micBtn.className = 'mic-btn';
+      micBtn.innerHTML = '🎙️';
+      micBtn.addEventListener('click', toggleVoiceRecognition);
+      document.body.appendChild(micBtn);
+    } catch (err) {
+      console.error('Invalid token:', err);
+      signOut();
     }
-
-    document.getElementById('profile-picture')?.addEventListener('change', (event) => {
-      const file = event.target.files[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          document.getElementById('profile-picture-preview').src = e.target.result;
-          document.getElementById('profile-picture-preview').style.display = 'block';
-        };
-        reader.readAsDataURL(file);
-      }
-    });
-  } catch (err) {
-    console.error('initMap error:', err);
-    alert('Failed to initialize the map. Please check your Google Maps API key and ensure location services are enabled.');
-  }
-}
-
-// Ensure initMap is globally accessible
-window.initMap = initMap;
-
-function setupMenuDropdown() {
-  const menuBtn = document.getElementById('menu-btn');
-  const menuDropdown = document.getElementById('menu-dropdown');
-  if (menuBtn && menuDropdown) {
-    menuBtn.addEventListener('click', () => {
-      menuDropdown.classList.toggle('show');
-    });
+  } else {
+    showLogin();
   }
 }
 
@@ -519,62 +355,26 @@ async function fetchProfileForUsername() {
     const response = await fetch('https://pinmap-website.onrender.com/auth/profile', {
       headers: { 'Authorization': `Bearer ${token}` }
     });
-    if (response.status === 401) {
-      console.log('Unauthorized access to profile. Token may be invalid or expired:', token);
-      signOut();
-      return;
+    if (response.ok) {
+      const profile = await response.json();
+      username = profile.username || profile.email;
+    } else {
+      throw new Error('Failed to fetch profile');
     }
-    if (!response.ok) {
-      throw new Error(`Failed to fetch profile: ${response.status} ${response.statusText}`);
-    }
-    const profile = await response.json();
-    username = profile.username || profile.email;
   } catch (err) {
     console.error('Error fetching profile:', err);
     username = null;
-    signOut();
   }
 }
 
 function showLogin() {
-  const authElement = document.getElementById('auth');
-  if (authElement) {
-    authElement.style.display = 'block';
-  } else {
-    console.error('Login form (#auth) not found in the DOM');
-  }
-  const mapContainer = document.getElementById('map-container');
-  if (mapContainer) {
-    mapContainer.style.display = 'none';
-  }
-  document.getElementById('profile-container').style.display = 'none';
-  document.getElementById('profile-view-container').style.display = 'none';
-  document.getElementById('media-view').style.display = 'none';
-  document.getElementById('messages-container').style.display = 'none';
-  document.getElementById('admin-panel').style.display = 'none';
+  document.getElementById('auth').style.display = 'block';
+  document.getElementById('map-container').style.display = 'none';
 }
 
 function showMap() {
   document.getElementById('auth').style.display = 'none';
-  const mapContainer = document.getElementById('map-container');
-  if (mapContainer) {
-    mapContainer.style.display = 'block';
-  } else {
-    console.error('Map container (#map-container) not found in the DOM');
-  }
-  document.getElementById('profile-container').style.display = 'none';
-  document.getElementById('profile-view-container').style.display = 'none';
-  document.getElementById('media-view').style.display = 'none';
-  document.getElementById('messages-container').style.display = 'none';
-  document.getElementById('admin-panel').style.display = 'none';
-  document.getElementById('admin-btn').style.display = isAdmin ? 'inline-block' : 'none';
-  if (isMobile) {
-    document.getElementById('mobile-admin-btn').style.display = isAdmin ? 'inline-block' : 'none';
-  }
-}
-
-function showChatPage() {
-  window.location.href = 'chat.html';
+  document.getElementById('map-container').style.display = 'block';
 }
 
 function setupWebSocket() {
@@ -591,63 +391,16 @@ function setupWebSocket() {
   };
   ws.onmessage = (event) => {
     const data = JSON.parse(event.data);
-    console.log('WebSocket message:', data);
     if (data.type === 'location' && data.userId === userId) {
       updateUserLocation(data.latitude, data.longitude);
-    } else if (data.type === 'allLocations' && isAdmin) {
-      console.log('Admin received allLocations:', data.locations);
-      data.locations.forEach(({ userId: uid, email, latitude, longitude }) => {
-        if (uid !== userId) {
-          const pos = { lat: latitude, lng: longitude };
-          if (!markers[uid]) {
-            markers[uid] = {
-              marker: new google.maps.Marker({
-                position: pos,
-                map: map,
-                title: email,
-                icon: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png'
-              }),
-              path: [pos],
-              polyline: new google.maps.Polyline({
-                path: [pos],
-                geodesic: true,
-                strokeColor: '#FF0000',
-                strokeOpacity: 0.8,
-                strokeWeight: 2,
-                map: map
-              })
-            };
-          } else {
-            markers[uid].path.push(pos);
-            const oldPos = markers[uid].marker.getPosition();
-            const steps = 20;
-            const latStep = (pos.lat - oldPos.lat()) / steps;
-            const lngStep = (pos.lng - oldPos.lng()) / steps;
-            let step = 0;
-
-            function animate() {
-              if (step <= steps) {
-                const nextLat = oldPos.lat() + latStep * step;
-                const nextLng = oldPos.lng() + lngStep * step;
-                markers[uid].marker.setPosition({ lat: nextLat, lng: nextLng });
-                step++;
-                requestAnimationFrame(animate);
-              }
-            }
-            animate();
-            markers[uid].polyline.setPath(markers[uid].path);
-          }
-        }
-      });
-    } else if (data.type === 'chat') {
-      addChatMessage(data);
-    } else if (data.type === 'privateMessage') {
-      checkNewMessages();
-    } else if (data.type === 'newPin') {
-      // Refresh pins on the map
-      refreshMapPins();
+    } else if (data.type === 'newPin' && !notifiedPins.has(data.pin._id)) {
+      notifiedPins.add(data.pin._id);
+      fetchPins();
+      if (voiceNavigationEnabled) {
+        speak(`New alert: ${data.pin.description}`);
+      }
     } else if (data.type === 'newComment') {
-      // Pin comments are handled on the alerts page
+      fetchPins();
     }
   };
   ws.onclose = () => {
@@ -660,122 +413,18 @@ function setupWebSocket() {
   };
 }
 
-function addChatMessage(data) {
-  const chatMessages = document.getElementById('chat-messages');
-  if (!chatMessages) return; // Chat messages are on a separate page
-  const messageDiv = document.createElement('div');
-  messageDiv.className = 'chat-message';
-  messageDiv.innerHTML = `
-    <span class="username">${data.username || data.userId || 'Unknown'}</span>:
-    ${data.message}
-    <span class="timestamp">${new Date(data.timestamp).toLocaleTimeString()}</span>
-  `;
-  chatMessages.appendChild(messageDiv);
-  chatMessages.scrollTop = chatMessages.scrollHeight;
-}
-
-function sendChatMessage() {
-  window.location.href = 'chat.html';
-}
-
-function startMap() {
-  if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const userLocation = { lat: position.coords.latitude, lng: position.coords.longitude };
-        console.log('Initial position:', userLocation);
-        map.setCenter(userLocation);
-        updateUserLocation(userLocation.lat, userLocation.lng);
-        startLocationTracking();
-
-        // Check if we need to center on a specific pin (from alerts page)
-        const centerLat = localStorage.getItem('centerLat');
-        const centerLng = localStorage.getItem('centerLng');
-        if (centerLat && centerLng) {
-          map.setCenter({ lat: parseFloat(centerLat), lng: parseFloat(centerLng) });
-          map.setZoom(15);
-          localStorage.removeItem('centerLat');
-          localStorage.removeItem('centerLng');
-        }
-      },
-      (error) => {
-        console.error('Geolocation error:', error);
-        map.setCenter({ lat: 33.0801, lng: -83.2321 });
-      },
-      { enableHighAccuracy: true, timeout: 5000 }
-    );
-  } else {
-    map.setCenter({ lat: 33.0801, lng: -83.2321 });
-  }
-
-  // Initial load of pins
-  refreshMapPins();
-}
-
-async function refreshMapPins() {
-  // Clear existing markers except user location
-  Object.keys(markers).forEach(key => {
-    if (markers[key].marker !== userLocationMarker) {
-      markers[key].marker.setMap(null);
-    }
-  });
-  markers = {};
-
-  try {
-    const response = await fetch('https://pinmap-website.onrender.com/pins', {
-      headers: { 'Authorization': `Bearer ${token}` },
-    });
-    if (response.status === 401) {
-      signOut();
-      return alert('Session expired. Please log in again.');
-    }
-    const pins = await response.json();
-    pins.forEach(pin => {
-      let icon;
-      if (pin.description.toLowerCase().includes('cop') || pin.description.toLowerCase().includes('police')) {
-        icon = { url: 'https://img.icons8.com/?size=100&id=fHTZqkybfaA7&format=png&color=000000', scaledSize: new google.maps.Size(32, 32) };
-      } else if (pin.pinType === 'business') {
-        icon = { url: 'https://img.icons8.com/?size=100&id=8312&format=png&color=FFD700', scaledSize: new google.maps.Size(32, 32) };
-      } else {
-        icon = { url: 'https://img.icons8.com/ios-filled/24/ffffff/warning-shield.png', scaledSize: new google.maps.Size(32, 32) };
-      }
-      const marker = new google.maps.Marker({
-        position: { lat: pin.latitude, lng: pin.longitude },
-        map: map,
-        title: pin.description,
-        icon: icon
-      });
-      markers[pin._id] = { marker };
-      marker.addListener('click', () => {
-        window.location.href = 'alerts.html';
-      });
-    });
-  } catch (err) {
-    console.error('Error refreshing pins:', err);
-    alert('Error loading pins on map.');
-  }
-}
-
 function updateUserLocation(lat, lng, speed = 0) {
   const newPos = { lat, lng };
   userPath.push(newPos);
 
   lastSpeed = speed ? (speed * 2.23694).toFixed(1) : lastSpeed;
-  
-  if (isMobile) {
-    const hud = document.querySelector('.gps-hud');
-    if (hud) {
-      hud.querySelector('.speed').textContent = `Speed: ${lastSpeed} mph`;
-      hud.querySelector('.street').textContent = `Street: Main Street`; // Simulated
-      hud.querySelector('.eta').textContent = `ETA: ${document.getElementById('time-to-destination')?.textContent || '--'}`;
-      hud.querySelector('.distance').textContent = `Distance: ${document.getElementById('distance-to-destination')?.textContent || '--'}`;
 
-      // Simulated speed camera alert (replace with real data as needed)
-      const distanceToCamera = 0.2; // Simulated distance in miles
-      hud.querySelector('.alert').textContent = `Speed camera in ${distanceToCamera} miles`;
-    }
-  } else {
-    document.getElementById('current-speed').textContent = `${lastSpeed} mph`;
+  const hud = document.querySelector('.gps-hud');
+  if (hud) {
+    hud.querySelector('.speed').textContent = `Speed: ${lastSpeed} mph`;
+    hud.querySelector('.destination').textContent = `Destination: ${currentDestination || 'Not set'}`;
+    hud.querySelector('.eta').textContent = `ETA: ${currentRoute ? currentRoute.routes[0].legs[0].duration.text : '--'}`;
+    hud.querySelector('.distance').textContent = `Distance: ${currentRoute ? currentRoute.routes[0].legs[0].distance.text : '--'}`;
   }
 
   if (!userLocationMarker) {
@@ -786,21 +435,20 @@ function updateUserLocation(lat, lng, speed = 0) {
       icon: {
         path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
         scale: 6,
-        fillColor: '#0000FF',
+        fillColor: '#00adef',
         fillOpacity: 1,
         strokeWeight: 2,
-        strokeColor: '#FFFFFF'
+        strokeColor: '#fff'
       }
     });
     userPolyline = new google.maps.Polyline({
       path: userPath,
       geodesic: true,
-      strokeColor: '#0000FF',
+      strokeColor: '#00adef',
       strokeOpacity: 0.8,
       strokeWeight: 2,
       map: map
     });
-    console.log('Marker created at:', newPos);
   } else {
     const oldPos = userLocationMarker.getPosition();
     const steps = 20;
@@ -819,17 +467,36 @@ function updateUserLocation(lat, lng, speed = 0) {
     }
     animate();
     userPolyline.setPath(userPath);
-    console.log('Marker moved to:', newPos);
   }
-  if (!isAdmin) map.panTo(newPos);
+  map.panTo(newPos);
 
-  fetchSpeedLimit(lat, lng);
+  fetch('https://pinmap-website.onrender.com/auth/location', {
+    method: 'PUT',
+    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ latitude: lat, longitude: lng })
+  }).catch(err => console.error('Error updating location:', err));
 }
 
-function fetchSpeedLimit(lat, lng) {
-  speedLimit = '35 mph'; // Simulated
-  if (!isMobile) {
-    document.getElementById('speed-limit').textContent = speedLimit;
+function startMap() {
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const userLocation = { lat: position.coords.latitude, lng: position.coords.longitude };
+        map.setCenter(userLocation);
+        updateUserLocation(userLocation.lat, userLocation.lng);
+        fetchPins();
+        startLocationTracking();
+      },
+      (error) => {
+        console.error('Geolocation error:', error);
+        map.setCenter({ lat: 33.0801, lng: -83.2321 });
+        fetchPins();
+      },
+      { enableHighAccuracy: true, timeout: 5000 }
+    );
+  } else {
+    map.setCenter({ lat: 33.0801, lng: -83.2321 });
+    fetchPins();
   }
 }
 
@@ -837,7 +504,6 @@ function startLocationTracking() {
   if (navigator.geolocation && !trackingPaused) {
     watchId = navigator.geolocation.watchPosition(
       (position) => {
-        console.log('New position:', position.coords.latitude, position.coords.longitude);
         const userLocation = { lat: position.coords.latitude, lng: position.coords.longitude };
         updateUserLocation(userLocation.lat, userLocation.lng, position.coords.speed);
         if (ws.readyState === WebSocket.OPEN) {
@@ -850,29 +516,9 @@ function startLocationTracking() {
             longitude: userLocation.lng
           }));
         }
-        fetch('https://pinmap-website.onrender.com/auth/location', {
-          method: 'PUT',
-          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ latitude: userLocation.lat, longitude: userLocation.lng })
-        }).catch(err => console.error('Error updating location:', err));
-
-        if (directionsRenderer.getDirections()) {
-          const destination = directionsRenderer.getDirections().routes[0].legs[0].end_location;
-          calculateRoute(destination);
-        }
       },
       (error) => {
         console.error('Tracking error:', error);
-        if (error.code === error.PERMISSION_DENIED && userLocationMarker) {
-          userLocationMarker.setMap(null);
-          userLocationMarker = null;
-          if (userPolyline) {
-            userPolyline.setMap(null);
-            userPolyline = null;
-          }
-          userPath = [];
-          map.setCenter({ lat: 33.0801, lng: -83.2321 });
-        }
       },
       { enableHighAccuracy: true, timeout: 1000, maximumAge: 0 }
     );
@@ -887,15 +533,6 @@ async function searchAddress() {
       const location = results[0].geometry.location;
       map.setCenter(location);
       map.setZoom(15);
-      if (!isAdmin) alert('Non-admin users can only view their current location.');
-      else {
-        new google.maps.Marker({
-          position: location,
-          map: map,
-          title: address,
-          icon: 'http://maps.google.com/mapfiles/ms/icons/green-dot.png',
-        });
-      }
     } else {
       alert('Address not found: ' + status);
     }
@@ -924,28 +561,17 @@ async function calculateRoute(destination) {
     if (status === google.maps.DirectionsStatus.OK) {
       directionsRenderer.setDirections(result);
       currentRoute = result;
-      const route = result.routes[0];
-      const leg = route.legs[0];
-      const duration = leg.duration_in_traffic || leg.duration;
-      const distance = leg.distance;
-      const normalDuration = leg.duration.value;
-      const trafficDuration = leg.duration_in_traffic ? leg.duration_in_traffic.value : normalDuration;
-
-      if (!isMobile) {
-        document.getElementById('time-to-destination').textContent = duration.text;
-        document.getElementById('distance-to-destination').textContent = distance.text;
-      }
-
       currentDestination = document.getElementById('address-search').value;
       updateUserLocation(origin.lat(), origin.lng(), lastSpeed);
 
-      if (trafficDuration > normalDuration * 1.2) {
-        alert(`Traffic delay detected! Estimated travel time: ${duration.text}`);
-        if (voiceNavigationEnabled) speak(`Traffic delay detected. Estimated travel time: ${duration.text}`);
+      if (voiceNavigationEnabled) {
+        speak('Route calculated. Starting navigation.');
+        speakNextInstruction();
       }
 
+      const route = result.routes[0];
       const pinResponse = await fetch('https://pinmap-website.onrender.com/pins', {
-        headers: { 'Authorization': `Bearer ${token}` },
+        headers: { 'Authorization': `Bearer ${token}` }
       });
       const pins = await pinResponse.json();
       const routePath = route.overview_path;
@@ -955,17 +581,11 @@ async function calculateRoute(destination) {
         return routePath.some(point => google.maps.geometry.spherical.computeDistanceBetween(point, pinPos) < 500);
       });
 
-      if (alerts.length > 0) {
+      if (alerts.length > 0 && voiceNavigationEnabled) {
         const alertMessages = alerts.map(pin => pin.description).join(', ');
-        alert(`Alerts on your route: ${alertMessages}`);
-        if (voiceNavigationEnabled) speak(`Alerts on your route: ${alertMessages}`);
-      }
-
-      if (voiceNavigationEnabled) {
-        speakNextInstruction();
+        speak(`Alerts on your route: ${alertMessages}`);
       }
     } else {
-      console.error('Directions request failed:', status);
       alert('Failed to calculate route: ' + status);
     }
   });
@@ -988,19 +608,9 @@ function startNavigation() {
 }
 
 async function login() {
-  const emailInput = document.getElementById('email');
-  const passwordInput = document.getElementById('password');
-  const stayLoggedInInput = document.getElementById('stay-logged-in');
-
-  if (!emailInput || !passwordInput || !stayLoggedInInput) {
-    console.error('Login form elements not found');
-    alert('Login form is not properly set up. Please check the HTML.');
-    return;
-  }
-
-  const email = emailInput.value.trim();
-  const password = passwordInput.value.trim();
-  const stayLoggedIn = stayLoggedInInput.checked;
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value.trim();
+  const stayLoggedIn = document.getElementById('stay-logged-in').checked;
 
   if (!email || !password) {
     alert('Please enter both email and password');
@@ -1011,17 +621,11 @@ async function login() {
     const response = await fetch('https://pinmap-website.onrender.com/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, stayLoggedIn }),
+      body: JSON.stringify({ email, password, stayLoggedIn })
     });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      alert(`Login failed: ${errorData.message || 'Invalid credentials'}`);
-      return;
-    }
-
-    const data = await response.json();
-    if (data.token) {
+    if (response.ok) {
+      const data = await response.json();
       token = data.token;
       localStorage.setItem('token', token);
       const payload = JSON.parse(atob(token.split('.')[1]));
@@ -1031,9 +635,10 @@ async function login() {
       showMap();
       startMap();
       setupWebSocket();
-      checkNewMessages();
+      subscribeToPush();
     } else {
-      alert(`Login failed: ${data.message || 'No token received'}`);
+      const errorData = await response.json();
+      alert(`Login failed: ${errorData.message}`);
     }
   } catch (err) {
     console.error('Login error:', err);
@@ -1057,51 +662,579 @@ function signOut() {
   if (watchId !== undefined) navigator.geolocation.clearWatch(watchId);
   watchId = undefined;
   if (ws) ws.close();
-  Object.values(markers).forEach(user => {
-    user.marker.setMap(null);
-    user.polyline?.setMap(null);
-  });
+  Object.values(markers).forEach(marker => marker.setMap(null));
   markers = {};
+  notifiedPins.clear();
   showLogin();
-  document.getElementById('chat-messages').innerHTML = '';
-  document.getElementById('messages-btn').textContent = 'Messages';
-  if (isMobile) {
-    document.getElementById('mobile-messages-btn').textContent = 'Messages';
+}
+async function addPin() {
+  if (!userLocationMarker) {
+    alert('Waiting for your location...');
+    return;
+  }
+
+  const position = userLocationMarker.getPosition();
+  const latitude = position.lat();
+  const longitude = position.lng();
+  const pinType = document.getElementById('pin-type').value;
+  const description = document.getElementById('description').value.trim() || pinType;
+  const mediaFile = document.getElementById('media-upload').files[0];
+
+  try {
+    const pins = await fetch('https://pinmap-website.onrender.com/pins', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    }).then(res => res.json());
+    const tooClose = pins.some(pin => getDistance(latitude, longitude, pin.latitude, pin.longitude) < 304.8);
+    if (tooClose) {
+      const closestPin = pins.find(pin => getDistance(latitude, longitude, pin.latitude, pin.longitude) < 304.8);
+      alert(`Alert too close to existing pin at (${closestPin.latitude.toFixed(4)}, ${closestPin.longitude.toFixed(4)})`);
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('latitude', latitude);
+    formData.append('longitude', longitude);
+    formData.append('description', description);
+    formData.append('pinType', pinType || 'alert');
+    if (mediaFile) formData.append('media', mediaFile);
+
+    const response = await fetch('https://pinmap-website.onrender.com/pins', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+      body: formData
+    });
+
+    if (response.ok) {
+      const pin = await response.json();
+      if (ws.readyState === WebSocket.OPEN && !notifiedPins.has(pin._id)) {
+        ws.send(JSON.stringify({ type: 'newPin', pin }));
+        notifiedPins.add(pin._id);
+      }
+      fetchPins();
+      closeAddAlertPage();
+      speak('Alert added successfully');
+    } else {
+      const errorData = await response.json();
+      alert(`Failed to add alert: ${errorData.message}`);
+    }
+  } catch (err) {
+    console.error('Add pin error:', err);
+    alert('Error adding alert. Check your media file (max 5MB, image only).');
   }
 }
 
-async function checkNewMessages() {
+async function extendPin(pinId) {
   try {
-    const response = await fetch('https://pinmap-website.onrender.com/auth/messages/inbox', {
+    const response = await fetch(`https://pinmap-website.onrender.com/pins/extend/${pinId}`, {
+      method: 'PUT',
       headers: { 'Authorization': `Bearer ${token}` }
     });
     if (response.ok) {
-      const messages = await response.json();
-      const unreadCount = messages.filter(msg => !msg.read).length;
-      const messagesBtn = document.getElementById('messages-btn');
-      if (messagesBtn) {
-        messagesBtn.textContent = `Messages${unreadCount > 0 ? ` (${unreadCount})` : ''}`;
-        messagesBtn.setAttribute('data-unread', unreadCount);
-      }
-      if (isMobile) {
-        const mobileMessagesBtn = document.getElementById('mobile-messages-btn');
-        if (mobileMessagesBtn) {
-          mobileMessagesBtn.textContent = `Messages${unreadCount > 0 ? ` (${unreadCount})` : ''}`;
-          mobileMessagesBtn.setAttribute('data-unread', unreadCount);
-        }
-      }
+      alert('Pin expiration extended by 2 hours');
+      fetchPins();
+      closeAlertsPage();
+    } else {
+      const errorData = await response.json();
+      alert(errorData.message);
     }
   } catch (err) {
-    console.error('Check messages error:', err);
+    console.error('Extend pin error:', err);
+    alert('Error extending pin');
   }
 }
 
-function showAdminPanel() {
-  window.location.href = 'admin.html';
+async function verifyPin(pinId) {
+  try {
+    const response = await fetch(`https://pinmap-website.onrender.com/pins/verify/${pinId}`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const result = await response.json();
+    if (response.ok) {
+      alert(`Pin verified. Verifications: ${result.verifications}${result.verified ? ' (Verified)' : ''}`);
+      fetchPins();
+      closeAlertsPage();
+    } else {
+      alert(result.message);
+    }
+  } catch (err) {
+    console.error('Verify pin error:', err);
+    alert('Error verifying pin');
+  }
+}
+
+async function showComments(pinId) {
+  try {
+    const response = await fetch(`https://pinmap-website.onrender.com/pins/comments/${pinId}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (response.ok) {
+      const comments = await response.json();
+      const commentModal = document.createElement('div');
+      commentModal.className = 'comment-modal';
+      commentModal.id = `comment-modal-${pinId}`;
+      commentModal.innerHTML = `
+        <h3>Comments</h3>
+        <div class="comment-list" id="comment-list-${pinId}"></div>
+        <div class="comment-input-container">
+          <input type="text" id="comment-input-${pinId}" placeholder="Add a comment...">
+          <button class="post-btn" onclick="addComment('${pinId}')">Post</button>
+        </div>
+        <button class="close-btn" onclick="closeComments()">Close</button>
+      `;
+      document.body.appendChild(commentModal);
+      renderComments(pinId, comments);
+    } else {
+      const errorData = await response.json();
+      alert(`Failed to fetch comments: ${errorData.message}`);
+    }
+  } catch (err) {
+    console.error('Fetch comments error:', err);
+    alert('Error fetching comments');
+  }
+}
+
+function renderComments(pinId, comments, parentElementId = `comment-list-${pinId}`, level = 0) {
+  const commentList = document.getElementById(parentElementId);
+  commentList.innerHTML = '';
+  const paginatedComments = comments.slice(0, 8);
+  paginatedComments.forEach(comment => {
+    const commentDiv = document.createElement('div');
+    commentDiv.className = `comment-item ${level > 0 ? 'reply' : ''}`;
+    commentDiv.innerHTML = `
+      <span class="username">${comment.username}</span>:
+      ${comment.content}
+      <span class="timestamp">${new Date(comment.timestamp).toLocaleString()}</span>
+      <div class="comment-actions">
+        <button class="like-btn" onclick="likeComment('${comment._id}')">Like (${comment.likes.length})</button>
+        <button class="dislike-btn" onclick="dislikeComment('${comment._id}')">Dislike (${comment.dislikes.length})</button>
+        <button class="reply-btn" onclick="showReplyInput('${pinId}', '${comment._id}')">Reply</button>
+      </div>
+      <div id="replies-${comment._id}" class="comment-list"></div>
+    `;
+    commentList.appendChild(commentDiv);
+    if (comment.replies.length > 0) {
+      renderComments(pinId, comment.replies, `replies-${comment._id}`, level + 1);
+    }
+  });
+}
+
+async function addComment(pinId, parentCommentId = null) {
+  const commentInput = document.getElementById(`comment-input-${pinId}`);
+  const content = commentInput ? commentInput.value.trim() : '';
+  const replyInput = parentCommentId ? document.getElementById(`reply-input-${parentCommentId}`) : null;
+  const replyContent = replyInput ? replyInput.value.trim() : '';
+  const finalContent = replyContent || content;
+
+  if (!finalContent) return alert('Comment cannot be empty');
+  try {
+    const response = await fetch(`https://pinmap-website.onrender.com/pins/comment/${pinId}`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: finalContent, parentCommentId })
+    });
+    if (response.ok) {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'newComment', pinId }));
+      }
+      closeComments();
+      showComments(pinId);
+    } else {
+      const errorData = await response.json();
+      alert(errorData.message);
+    }
+  } catch (err) {
+    console.error('Add comment error:', err);
+    alert('Error adding comment');
+  }
+}
+
+function showReplyInput(pinId, parentCommentId) {
+  const replyContainer = document.getElementById(`replies-${parentCommentId}`);
+  const existingInput = replyContainer.querySelector('.comment-input-container');
+  if (existingInput) return;
+  const replyInput = document.createElement('div');
+  replyInput.className = 'comment-input-container';
+  replyInput.innerHTML = `
+    <input type="text" id="reply-input-${parentCommentId}" placeholder="Add a reply...">
+    <button class="post-btn" onclick="addComment('${pinId}', '${parentCommentId}')">Post</button>
+  `;
+  replyContainer.appendChild(replyInput);
+}
+
+async function likeComment(commentId) {
+  try {
+    const response = await fetch(`https://pinmap-website.onrender.com/pins/comment/${commentId}/like`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (response.ok) {
+      const pinId = document.querySelector('.comment-modal').id.split('-')[2];
+      closeComments();
+      showComments(pinId);
+    } else {
+      const errorData = await response.json();
+      alert(errorData.message);
+    }
+  } catch (err) {
+    console.error('Like comment error:', err);
+    alert('Error liking comment');
+  }
+}
+
+async function dislikeComment(commentId) {
+  try {
+    const response = await fetch(`https://pinmap-website.onrender.com/pins/comment/${commentId}/dislike`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (response.ok) {
+      const pinId = document.querySelector('.comment-modal').id.split('-')[2];
+      closeComments();
+      showComments(pinId);
+    } else {
+      const errorData = await response.json();
+      alert(errorData.message);
+    }
+  } catch (err) {
+    console.error('Dislike comment error:', err);
+    alert('Error disliking comment');
+  }
+}
+
+function closeComments() {
+  const commentModal = document.querySelector('.comment-modal');
+  if (commentModal) commentModal.remove();
+}
+
+async function removePin(pinId) {
+  try {
+    const response = await fetch(`https://pinmap-website.onrender.com/pins/${pinId}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (response.ok) {
+      if (markers[pinId]) {
+        markers[pinId].setMap(null);
+        delete markers[pinId];
+      }
+      fetchPins();
+      closeAlertsPage();
+    } else {
+      const errorData = await response.json();
+      alert(errorData.message);
+    }
+  } catch (err) {
+    console.error('Remove pin error:', err);
+    alert('Error removing pin');
+  }
+}
+
+async function voteToRemove(pinId) {
+  try {
+    const response = await fetch(`https://pinmap-website.onrender.com/pins/vote/${pinId}`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const result = await response.json();
+    if (response.ok) {
+      if (result.removed) {
+        if (markers[pinId]) {
+          markers[pinId].setMap(null);
+          delete markers[pinId];
+        }
+        alert('Pin removed due to votes');
+      } else {
+        alert(`Vote recorded. Votes: ${result.voteCount}/8`);
+      }
+      fetchPins();
+      closeAlertsPage();
+    } else {
+      alert(result.message);
+    }
+  } catch (err) {
+    console.error('Vote error:', err);
+    alert('Error voting');
+  }
+}
+
+function goToPinLocation(lat, lng) {
+  map.setCenter({ lat: parseFloat(lat), lng: parseFloat(lng) });
+  map.setZoom(15);
+  closeAlertsPage();
+}
+
+async function fetchPins() {
+  try {
+    const pinResponse = await fetch('https://pinmap-website.onrender.com/pins', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (pinResponse.status === 401) {
+      signOut();
+      alert('Session expired. Please log in again.');
+      return;
+    }
+    if (!pinResponse.ok) {
+      throw new Error(`Failed to fetch pins: ${pinResponse.statusText}`);
+    }
+    const pins = await pinResponse.json();
+
+    Object.keys(markers).forEach(pinId => {
+      if (!pins.some(pin => pin._id === pinId)) {
+        markers[pinId].setMap(null);
+        delete markers[pinId];
+      }
+    });
+
+    pins.forEach(pin => {
+      if (!markers[pin._id]) {
+        let icon;
+        if (pin.description.toLowerCase().includes('cop') || pin.description.toLowerCase().includes('police')) {
+          icon = { url: 'https://img.icons8.com/?size=100&id=fHTZqkybfaA7&format=png&color=000000', scaledSize: new google.maps.Size(32, 32) };
+        } else if (pin.pinType === 'business') {
+          icon = { url: 'https://img.icons8.com/?size=100&id=8312&format=png&color=FFD700', scaledSize: new google.maps.Size(32, 32) };
+        } else {
+          icon = { url: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png' };
+        }
+        markers[pin._id] = new google.maps.Marker({
+          position: { lat: pin.latitude, lng: pin.longitude },
+          map: map,
+          title: pin.description,
+          icon: icon
+        });
+      }
+    });
+  } catch (err) {
+    console.error('Fetch pins error:', err);
+    alert('Error fetching pins: ' + err.message);
+  }
 }
 
 function showAlertsPage() {
-  window.location.href = 'alerts.html';
+  const alertsPage = document.createElement('div');
+  alertsPage.className = 'alerts-page';
+  alertsPage.innerHTML = `
+    <h2>Alerts</h2>
+    <div id="pin-list"></div>
+    <button class="back-btn" onclick="closeAlertsPage()">Back to Map</button>
+  `;
+  document.body.appendChild(alertsPage);
+  document.getElementById('map-container').style.display = 'none';
+
+  fetch('https://pinmap-website.onrender.com/pins', {
+    headers: { 'Authorization': `Bearer ${token}` }
+  }).then(response => {
+    if (response.status === 401) {
+      signOut();
+      alert('Session expired. Please log in again.');
+      return;
+    }
+    return response.json();
+  }).then(pins => {
+    const pinList = alertsPage.querySelector('#pin-list');
+    pinList.innerHTML = `
+      <table class="pin-table">
+        <thead>
+          <tr>
+            <th>Description</th>
+            <th>Latitude</th>
+            <th>Longitude</th>
+            <th>Posted By</th>
+            <th>Timestamp (ET)</th>
+            <th>Expires</th>
+            <th>Media</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    `;
+    const tableBody = pinList.querySelector('tbody');
+    pins.forEach(pin => {
+      if (pin.pinType !== 'alert') return;
+      const isOwnPin = pin.userId._id === userId;
+      const canRemove = isAdmin || isOwnPin;
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td data-label="Description">${pin.description}</td>
+        <td data-label="Latitude">${pin.latitude.toFixed(4)}</td>
+        <td data-label="Longitude">${pin.longitude.toFixed(4)}</td>
+        <td data-label="Posted By">
+          <span onclick="viewProfile('${pin.userId._id}')" style="cursor: pointer; color: #00adef;">
+            ${pin.username || pin.userEmail}
+            <img src="https://img.icons8.com/small/16/visible.png" class="profile-view-icon">
+          </span>
+        </td>
+        <td data-label="Timestamp (ET)">${new Date(pin.createdAt).toLocaleString()}</td>
+        <td data-label="Expires">${pin.expiresAt ? new Date(pin.expiresAt).toLocaleString() : 'Permanent'}</td>
+        <td data-label="Media">
+          ${pin.media ? `
+            <img src="https://img.icons8.com/small/20/image.png" class="media-view-icon" onclick="viewMedia('${pin.media}')">
+          ` : 'N/A'}
+        </td>
+        <td data-label="Actions">
+          <div class="action-buttons">
+            <button class="standard-btn goto-btn" onclick="goToPinLocation(${pin.latitude}, ${pin.longitude})">Go To</button>
+            <button class="standard-btn remove-btn" onclick="${canRemove ? `removePin('${pin._id}')` : `alert('You can only remove your own pins unless you are an admin')`}" ${!canRemove ? 'disabled' : ''}>Remove</button>
+            <button class="standard-btn extend-btn" onclick="${canRemove ? `extendPin('${pin._id}')` : `alert('Only the pin owner or admin can extend')`}" ${!canRemove ? 'disabled' : ''}>Extend</button>
+            <button class="standard-btn verify-btn" onclick="verifyPin('${pin._id}')">Verify (${pin.verifications.length})</button>
+            <button class="standard-btn vote-btn" onclick="voteToRemove('${pin._id}')">Vote (${pin.voteCount}/8)</button>
+            <button class="standard-btn comment-btn" onclick="showComments('${pin._id}')">Comments (${pin.comments.length})</button>
+          </div>
+          ${isMobile ? `<div class="action-btn" onclick='showToolsModal(${JSON.stringify(pin)})'>Actions</div>` : ''}
+        </td>
+      `;
+      tableBody.appendChild(row);
+    });
+  }).catch(err => {
+    console.error('Fetch alerts error:', err);
+    alert('Error loading alerts');
+  });
+}
+
+function showToolsModal(pin) {
+  const modal = document.createElement('div');
+  modal.className = 'tools-modal';
+  modal.id = `tools-modal-${pin._id}`;
+  const isOwnPin = pin.userId._id === userId;
+  const canRemove = isAdmin || isOwnPin;
+  const isAlertPin = pin.pinType === 'alert';
+  modal.innerHTML = `
+    <div class="tools-modal-content">
+      <h3>Pin Actions</h3>
+      <div class="action-buttons">
+        <button class="standard-btn goto-btn" onclick="goToPinLocation(${pin.latitude}, ${pin.longitude})">Go To</button>
+        <button class="standard-btn remove-btn" onclick="${canRemove ? `removePin('${pin._id}')` : `alert('You can only remove your own pins unless you are an admin')`}" ${!canRemove ? 'disabled' : ''}>Remove</button>
+        ${isAlertPin ? `
+          <button class="standard-btn extend-btn" onclick="${canRemove ? `extendPin('${pin._id}')` : `alert('Only the pin owner or admin can extend')`}" ${!canRemove ? 'disabled' : ''}>Extend</button>
+          <button class="standard-btn verify-btn" onclick="verifyPin('${pin._id}')">Verify (${pin.verifications.length})</button>
+          <button class="standard-btn vote-btn" onclick="voteToRemove('${pin._id}')">Vote (${pin.voteCount}/8)</button>
+        ` : ''}
+        <button class="standard-btn comment-btn" onclick="showComments('${pin._id}')">Comments (${pin.comments.length})</button>
+        <button class="standard-btn close-btn" onclick="closeToolsModal()">Close</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+function closeToolsModal() {
+  const modal = document.querySelector('.tools-modal');
+  if (modal) modal.remove();
+}
+
+function closeAlertsPage() {
+  const alertsPage = document.querySelector('.alerts-page');
+  if (alertsPage) alertsPage.remove();
+  document.getElementById('map-container').style.display = 'block';
+}
+
+function showAddAlertPage() {
+  const addAlertPage = document.createElement('div');
+  addAlertPage.className = 'add-alert-page';
+  addAlertPage.innerHTML = `
+    <h2>Add Alert</h2>
+    <select id="pin-type">
+      <option value="">Select Alert Type</option>
+      <option value="cop">Cop</option>
+      <option value="shooting">Shooting</option>
+      <option value="fire">Fire</option>
+      <option value="roadblock">Roadblock</option>
+      <option value="wreck">Wreck/Crash</option>
+      ${isAdmin ? '<option value="business">Business (Admin)</option>' : ''}
+    </select>
+    <input type="text" id="description" placeholder="Alert Description" maxlength="100">
+    <input type="file" id="media-upload" accept="image/*">
+    <button onclick="addPin()">Add Alert</button>
+    <button class="back-btn" onclick="closeAddAlertPage()">Back to Map</button>
+  `;
+  document.body.appendChild(addAlertPage);
+  document.getElementById('map-container').style.display = 'none';
+}
+
+function closeAddAlertPage() {
+  const addAlertPage = document.querySelector('.add-alert-page');
+  if (addAlertPage) addAlertPage.remove();
+  document.getElementById('map-container').style.display = 'block';
+}
+
+function viewMedia(mediaPath) {
+  const mediaView = document.createElement('div');
+  mediaView.className = 'media-view';
+  mediaView.innerHTML = `
+    <div class="media-container">
+      <img id="media-image" style="display: none;" alt="Alert Media">
+      <video id="media-video" controls style="display: none;"></video>
+      <button onclick="closeMediaView()">Close</button>
+    </div>
+  `;
+  document.body.appendChild(mediaView);
+  document.getElementById('map-container').style.display = 'none';
+  const mediaImage = mediaView.querySelector('#media-image');
+  const mediaVideo = mediaView.querySelector('#media-video');
+  mediaImage.style.display = 'none';
+  mediaVideo.style.display = 'none';
+  if (mediaPath.endsWith('.mp4') || mediaPath.endsWith('.webm')) {
+    mediaVideo.src = `https://pinmap-website.onrender.com${mediaPath}`;
+    mediaVideo.style.display = 'block';
+  } else {
+    mediaImage.src = `https://pinmap-website.onrender.com${mediaPath}`;
+    mediaImage.style.display = 'block';
+  }
+}
+
+function closeMediaView() {
+  const mediaView = document.querySelector('.media-view');
+  if (mediaView) {
+    const mediaVideo = mediaView.querySelector('#media-video');
+    if (mediaVideo) {
+      mediaVideo.pause();
+      mediaVideo.src = '';
+    }
+    mediaView.remove();
+  }
+  document.getElementById('map-container').style.display = 'block';
+}
+
+async function viewProfile(userIdToView) {
+  try {
+    const response = await fetch(`https://pinmap-website.onrender.com/auth/profile/${userIdToView}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (response.ok) {
+      const profile = await response.json();
+      const profileView = document.createElement('div');
+      profileView.className = 'profile-view-container';
+      profileView.innerHTML = `
+        <h2>User Profile</h2>
+        <div class="profile-picture-section">
+          <img id="view-profile-picture" src="${profile.profilePicture ? `https://pinmap-website.onrender.com${profile.profilePicture}` : 'https://via.placeholder.com/150'}" alt="Profile Picture">
+        </div>
+        <div class="profile-details">
+          <p><strong>Username:</strong> <span id="view-username">${profile.username || profile.email}</span></p>
+          <p><strong>Location:</strong> <span id="view-location">${profile.location || 'Not set'}</span></p>
+          <p><strong>Current Pins:</strong> <span id="view-pin-count">${profile.totalPins || 0}</span></p>
+          <p><strong>Reputation:</strong> <span id="view-reputation">${profile.reputation || 0}</span></p>
+          <p><strong>Badges:</strong> <span id="view-badges">${profile.badges ? profile.badges.join(', ') : 'None'}</span></p>
+        </div>
+        <button onclick="closeProfileView()">Close</button>
+      `;
+      document.body.appendChild(profileView);
+      document.getElementById('map-container').style.display = 'none';
+    } else {
+      const errorData = await response.json();
+      alert(`Failed to fetch user profile: ${errorData.message}`);
+    }
+  } catch (err) {
+    console.error('View profile error:', err);
+    alert('Error viewing profile');
+  }
+}
+
+function closeProfileView() {
+  const profileView = document.querySelector('.profile-view-container');
+  if (profileView) profileView.remove();
+  document.getElementById('map-container').style.display = 'block';
 }
 
 document.addEventListener('DOMContentLoaded', () => {
