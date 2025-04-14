@@ -1,5 +1,6 @@
 /* css/style.css */
 
+/* Reset and Base Styles */
 * {
   margin: 0;
   padding: 0;
@@ -104,7 +105,49 @@ header h1 {
   margin-bottom: 0;
 }
 
-/* Updated GPS HUD Styling to Match Screenshot */
+/* Map Legend Styling */
+.map-legend {
+  background: rgba(255, 255, 255, 0.9);
+  padding: 10px;
+  border-radius: 5px;
+  margin: 10px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 5px;
+  font-size: 12px;
+  color: #333;
+}
+
+.legend-item span {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  margin-right: 5px;
+  border-radius: 3px;
+}
+
+/* Custom Map Control Button */
+.custom-map-control {
+  background: #fff;
+  border: 2px solid #fff;
+  border-radius: 3px;
+  box-shadow: 0 2px 6px rgba(0,0,0,.3);
+  margin: 10px;
+  padding: 5px;
+  cursor: pointer;
+  font-size: 16px;
+  text-align: center;
+}
+
+.custom-map-control:hover {
+  background: #f4f4f4;
+}
+
+/* Updated GPS HUD Styling */
 .gps-hud {
   position: absolute;
   bottom: 10px;
@@ -368,28 +411,26 @@ header h1 {
   color: #3498db;
 }
 
-.pin-controls {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin: 0;
-  padding: 8px;
-  padding-top: 0;
-  background: #ffffff;
-  border-radius: 0 0 8px 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+.add-alert-container {
   width: 100%;
-  position: relative;
-  display: none; /* Hidden by default, toggled by FAB */
+  max-width: 280px;
+  margin: 15px auto;
+  background: #ffffff;
+  padding: 15px;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  text-align: center;
 }
 
-.pin-controls.active {
-  display: flex;
+.add-alert-container h2 {
+  font-size: 18px;
+  margin-bottom: 10px;
+  color: #2c3e50;
 }
 
-.pin-controls select,
-.pin-controls input[type="text"],
-.pin-controls input[type="file"] {
+.add-alert-container select,
+.add-alert-container input[type="text"],
+.add-alert-container input[type="file"] {
   padding: 8px;
   border: 1px solid #ddd;
   border-radius: 4px;
@@ -398,37 +439,25 @@ header h1 {
   transition: border-color 0.3s ease;
   width: 100%;
   height: 40px;
+  margin: 6px 0;
 }
 
-.pin-controls select:focus,
-.pin-controls input[type="text"]:focus,
-.pin-controls input[type="file"]:focus {
+.add-alert-container select:focus,
+.add-alert-container input[type="text"]:focus,
+.add-alert-container input[type="file"]:focus {
   border-color: #3498db;
   box-shadow: 0 0 5px rgba(52, 152, 219, 0.5);
   outline: none;
 }
 
-.pin-controls button {
+.add-alert-container button {
   width: 100%;
   height: 40px;
   font-size: 14px;
+  margin: 6px 0;
 }
 
-.pin-controls #alert-counter {
-  font-size: 12px;
-  font-weight: 700;
-  color: #ffffff;
-  background: #e74c3c;
-  padding: 5px 8px;
-  border-radius: 16px;
-  text-align: center;
-  position: fixed;
-  bottom: 10px;
-  right: 10px;
-  z-index: 15;
-}
-
-/* Floating Action Button for Pin Controls */
+/* Floating Action Button for Adding Alerts */
 .fab-pin {
   position: fixed;
   bottom: 60px;
@@ -837,19 +866,6 @@ button:active {
   transform: translateY(0);
 }
 
-.toggle-tracking-btn {
-  background: #f39c12;
-  color: #ffffff;
-}
-
-.toggle-tracking-btn:hover {
-  background: #e08e0b;
-}
-
-.toggle-tracking-btn.paused {
-  background: #e74c3c;
-}
-
 /* Desktop Styles */
 @media (min-width: 769px) {
   body {
@@ -1039,20 +1055,21 @@ button:active {
     margin: 6px 0;
   }
 
-  .pin-controls {
-    flex-direction: row;
-    gap: 10px;
-    margin: 10px 0;
-    padding: 15px;
-    border-radius: 8px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-    align-items: center;
-    display: flex;
+  .add-alert-container {
+    max-width: 500px;
+    margin: 30px auto;
+    padding: 30px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
   }
 
-  .pin-controls select,
-  .pin-controls input[type="text"],
-  .pin-controls input[type="file"] {
+  .add-alert-container h2 {
+    font-size: 24px;
+    margin-bottom: 20px;
+  }
+
+  .add-alert-container select,
+  .add-alert-container input[type="text"],
+  .add-alert-container input[type="file"] {
     padding: 8px;
     font-size: 14px;
     flex: 1;
@@ -1062,22 +1079,12 @@ button:active {
     line-height: 1;
   }
 
-  .pin-controls button {
+  .add-alert-container button {
     flex: 0 0 auto;
     width: auto;
     padding: 8px 16px;
     height: 36px;
     font-size: 14px;
-  }
-
-  .pin-controls #alert-counter {
-    font-size: 14px;
-    padding: 8px 12px;
-    height: 36px;
-    line-height: 1;
-    margin-left: 10px;
-    border-radius: 20px;
-    position: static;
   }
 
   .fab-pin,
@@ -1167,7 +1174,7 @@ button:active {
 
   .pin-table th:nth-child(1), .pin-table td:nth-child(1) { width: 15%; }
   .pin-table th:nth-child(2), .pin-table td:nth-child(2) { width: 10%; }
-  .pin-table th:nth-child(3), .pin-table td:nth-child(3) { width: 10%; }
+  .pin-table th:nth-child(3), .pin downstairs-table td:nth-child(3) { width: 10%; }
   .pin-table th:nth-child(4), .pin-table td:nth-child(4) { width: 15%; }
   .pin-table th:nth-child(5), .pin-table td:nth-child(5) { width: 15%; }
   .pin-table th:nth-child(6), .pin-table td:nth-child(6) { width: 15%; }
@@ -1654,16 +1661,16 @@ button:active {
 .login-btn:hover { background: #2980b9; }
 .register-btn { background: #2ecc71; color: #ffffff; }
 .register-btn:hover { background: #27ae60; }
-.pin-controls button { background: #2ecc71; color: #ffffff; }
-.pin-controls button:hover { background: #27ae60; }
+.add-alert-container button { background: #2ecc71; color: #ffffff; }
+.add-alert-container button:hover { background: #27ae60; }
 .controls button:nth-child(2) { background: #3498db; color: #ffffff; }
 .controls button:nth-child(2):hover { background: #2980b9; }
-.controls button:nth-child(3) { background: #f39c12; color: #ffffff; }
-.controls button:nth-child(3):hover { background: #e08e0b; }
-.controls button:nth-child(4), .remove-btn { background: #e74c3c; color: #ffffff; }
-.controls button:nth-child(4):hover, .remove-btn:hover { background: #c0392b; }
-.controls button:nth-child(5) { background: #9b59b6; color: #ffffff; }
-.controls button:nth-child(5):hover { background: #8e44ad; }
+.controls button:nth-child(3) { background: #e74c3c; color: #ffffff; }
+.controls button:nth-child(3):hover { background: #c0392b; }
+.controls button:nth-child(4) { background: #9b59b6; color: #ffffff; }
+.controls button:nth-child(4):hover { background: #8e44ad; }
+.remove-btn { background: #e74c3c; color: #ffffff; }
+.remove-btn:hover { background: #c0392b; }
 .ban-btn { background: #e67e22; color: #ffffff; }
 .ban-btn:hover { background: #d35400; }
 .vote-btn { background: #8e44ad; color: #ffffff; }
