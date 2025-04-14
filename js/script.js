@@ -224,58 +224,65 @@ function initMap() {
     styles: [
       {
         "featureType": "all",
-        "elementType": "geometry.fill",
+        "elementType": "geometry",
         "stylers": [
-          { "color": "#ffffff" }
+          { "color": "#1a1a1a" }
         ]
       },
       {
         "featureType": "road",
-        "elementType": "geometry.stroke",
+        "elementType": "geometry",
         "stylers": [
-          { "color": "#d3d3d3" }
+          { "color": "#333333" }
         ]
       },
       {
         "featureType": "road.highway",
-        "elementType": "geometry.fill",
+        "elementType": "geometry",
         "stylers": [
-          { "color": "#00adef" }
+          { "color": "#00d4ff" }
         ]
       },
       {
         "featureType": "road.arterial",
-        "elementType": "geometry.fill",
+        "elementType": "geometry",
         "stylers": [
-          { "color": "#e0e0e0" }
+          { "color": "#555555" }
         ]
       },
       {
         "featureType": "water",
-        "elementType": "geometry.fill",
+        "elementType": "geometry",
         "stylers": [
-          { "color": "#b9d3c2" }
+          { "color": "#2a2a2a" }
+        ]
+      },
+      {
+        "featureType": "landscape",
+        "elementType": "geometry",
+        "stylers": [
+          { "color": "#222222" }
         ]
       },
       {
         "featureType": "poi",
-        "elementType": "geometry.fill",
+        "elementType": "geometry",
         "stylers": [
-          { "color": "#f0f0f0" }
+          { "color": "#2a2a2a" }
         ]
       },
       {
         "featureType": "all",
         "elementType": "labels.text.fill",
         "stylers": [
-          { "color": "#333333" }
+          { "color": "#ffffff" }
         ]
       },
       {
         "featureType": "all",
         "elementType": "labels.text.stroke",
         "stylers": [
-          { "color": "#ffffff" },
+          { "color": "#000000" },
           { "weight": 2 }
         ]
       }
@@ -286,7 +293,7 @@ function initMap() {
   directionsRenderer = new google.maps.DirectionsRenderer({
     map: map,
     suppressMarkers: true,
-    polylineOptions: { strokeColor: '#00adef', strokeWeight: 6 }
+    polylineOptions: { strokeColor: '#00d4ff', strokeWeight: 6 }
   });
 
   const trafficLayer = new google.maps.TrafficLayer();
@@ -317,11 +324,18 @@ function initMap() {
       const hud = document.createElement('div');
       hud.className = 'gps-hud';
       hud.innerHTML = `
-        <p class="speed">Speed: 0 mph</p>
-        <p class="destination">Destination: Not set</p>
-        <p class="eta">ETA: --</p>
-        <p class="distance">Distance: --</p>
+        <div class="speed-container">
+          <span class="speed">0</span>
+          <span class="speed-limit">N/A</span>
+        </div>
+        <p class="destination">Not set</p>
+        <div class="eta-distance">
+          <p class="eta">--</p>
+          <p class="distance">--</p>
+        </div>
+        <div class="plus-btn">+</div>
       `;
+      hud.querySelector('.plus-btn').addEventListener('click', showAddAlertPage);
       document.getElementById('map-container').appendChild(hud);
 
       const alertsBtn = document.createElement('div');
@@ -330,17 +344,13 @@ function initMap() {
       alertsBtn.addEventListener('click', showAlertsPage);
       document.body.appendChild(alertsBtn);
 
-      const plusBtn = document.createElement('div');
-      plusBtn.className = 'plus-btn';
-      plusBtn.innerHTML = '+';
-      plusBtn.addEventListener('click', showAddAlertPage);
-      document.body.appendChild(plusBtn);
-
       const micBtn = document.createElement('div');
       micBtn.className = 'mic-btn';
       micBtn.innerHTML = '🎙️';
       micBtn.addEventListener('click', toggleVoiceRecognition);
       document.body.appendChild(micBtn);
+
+      document.getElementById('admin-btn').style.display = isAdmin ? 'block' : 'none';
     } catch (err) {
       console.error('Invalid token:', err);
       signOut();
@@ -418,13 +428,15 @@ function updateUserLocation(lat, lng, speed = 0) {
   userPath.push(newPos);
 
   lastSpeed = speed ? (speed * 2.23694).toFixed(1) : lastSpeed;
+  speedLimit = '45 mph'; // Simulated, as in the screenshot
 
   const hud = document.querySelector('.gps-hud');
   if (hud) {
-    hud.querySelector('.speed').textContent = `Speed: ${lastSpeed} mph`;
-    hud.querySelector('.destination').textContent = `Destination: ${currentDestination || 'Not set'}`;
-    hud.querySelector('.eta').textContent = `ETA: ${currentRoute ? currentRoute.routes[0].legs[0].duration.text : '--'}`;
-    hud.querySelector('.distance').textContent = `Distance: ${currentRoute ? currentRoute.routes[0].legs[0].distance.text : '--'}`;
+    hud.querySelector('.speed').textContent = lastSpeed;
+    hud.querySelector('.speed-limit').textContent = speedLimit;
+    hud.querySelector('.destination').textContent = currentDestination || 'Not set';
+    hud.querySelector('.eta').textContent = currentRoute ? `${currentRoute.routes[0].legs[0].duration.text} - ${new Date(Date.now() + currentRoute.routes[0].legs[0].duration.value * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : '--';
+    hud.querySelector('.distance').textContent = currentRoute ? currentRoute.routes[0].legs[0].distance.text : '--';
   }
 
   if (!userLocationMarker) {
@@ -435,7 +447,7 @@ function updateUserLocation(lat, lng, speed = 0) {
       icon: {
         path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
         scale: 6,
-        fillColor: '#00adef',
+        fillColor: '#00d4ff',
         fillOpacity: 1,
         strokeWeight: 2,
         strokeColor: '#fff'
@@ -444,7 +456,7 @@ function updateUserLocation(lat, lng, speed = 0) {
     userPolyline = new google.maps.Polyline({
       path: userPath,
       geodesic: true,
-      strokeColor: '#00adef',
+      strokeColor: '#00d4ff',
       strokeOpacity: 0.8,
       strokeWeight: 2,
       map: map
@@ -974,9 +986,6 @@ async function fetchPins() {
       alert('Session expired. Please log in again.');
       return;
     }
-    if (!pinResponse.ok) {
-      throw new Error(`Failed to fetch pins: ${pinResponse.statusText}`);
-    }
     const pins = await pinResponse.json();
 
     Object.keys(markers).forEach(pinId => {
@@ -1006,7 +1015,7 @@ async function fetchPins() {
     });
   } catch (err) {
     console.error('Fetch pins error:', err);
-    alert('Error fetching pins: ' + err.message);
+    alert('Error fetching pins');
   }
 }
 
@@ -1060,7 +1069,7 @@ function showAlertsPage() {
         <td data-label="Latitude">${pin.latitude.toFixed(4)}</td>
         <td data-label="Longitude">${pin.longitude.toFixed(4)}</td>
         <td data-label="Posted By">
-          <span onclick="viewProfile('${pin.userId._id}')" style="cursor: pointer; color: #00adef;">
+          <span onclick="viewProfile('${pin.userId._id}')" style="cursor: pointer; color: #00d4ff;">
             ${pin.username || pin.userEmail}
             <img src="https://img.icons8.com/small/16/visible.png" class="profile-view-icon">
           </span>
@@ -1081,7 +1090,6 @@ function showAlertsPage() {
             <button class="standard-btn vote-btn" onclick="voteToRemove('${pin._id}')">Vote (${pin.voteCount}/8)</button>
             <button class="standard-btn comment-btn" onclick="showComments('${pin._id}')">Comments (${pin.comments.length})</button>
           </div>
-          ${isMobile ? `<div class="action-btn" onclick='showToolsModal(${JSON.stringify(pin)})'>Actions</div>` : ''}
         </td>
       `;
       tableBody.appendChild(row);
@@ -1090,37 +1098,6 @@ function showAlertsPage() {
     console.error('Fetch alerts error:', err);
     alert('Error loading alerts');
   });
-}
-
-function showToolsModal(pin) {
-  const modal = document.createElement('div');
-  modal.className = 'tools-modal';
-  modal.id = `tools-modal-${pin._id}`;
-  const isOwnPin = pin.userId._id === userId;
-  const canRemove = isAdmin || isOwnPin;
-  const isAlertPin = pin.pinType === 'alert';
-  modal.innerHTML = `
-    <div class="tools-modal-content">
-      <h3>Pin Actions</h3>
-      <div class="action-buttons">
-        <button class="standard-btn goto-btn" onclick="goToPinLocation(${pin.latitude}, ${pin.longitude})">Go To</button>
-        <button class="standard-btn remove-btn" onclick="${canRemove ? `removePin('${pin._id}')` : `alert('You can only remove your own pins unless you are an admin')`}" ${!canRemove ? 'disabled' : ''}>Remove</button>
-        ${isAlertPin ? `
-          <button class="standard-btn extend-btn" onclick="${canRemove ? `extendPin('${pin._id}')` : `alert('Only the pin owner or admin can extend')`}" ${!canRemove ? 'disabled' : ''}>Extend</button>
-          <button class="standard-btn verify-btn" onclick="verifyPin('${pin._id}')">Verify (${pin.verifications.length})</button>
-          <button class="standard-btn vote-btn" onclick="voteToRemove('${pin._id}')">Vote (${pin.voteCount}/8)</button>
-        ` : ''}
-        <button class="standard-btn comment-btn" onclick="showComments('${pin._id}')">Comments (${pin.comments.length})</button>
-        <button class="standard-btn close-btn" onclick="closeToolsModal()">Close</button>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(modal);
-}
-
-function closeToolsModal() {
-  const modal = document.querySelector('.tools-modal');
-  if (modal) modal.remove();
 }
 
 function closeAlertsPage() {
@@ -1237,9 +1214,15 @@ function closeProfileView() {
   document.getElementById('map-container').style.display = 'block';
 }
 
+function editProfile() {
+  window.location.href = 'profile.html';
+}
+
+function showAdminPanel() {
+  window.location.href = 'admin.html';
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   const loginBtn = document.getElementById('login-btn');
-  if (loginBtn) {
-    loginBtn.addEventListener('click', login);
-  }
+  if (loginBtn) loginBtn.addEventListener('click', login);
 });
