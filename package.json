@@ -1,0 +1,15 @@
+{
+  "name": "waze-like-frontend",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build"
+  },
+  "dependencies": {
+    "leaflet": "^1.9.4",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
+    "react-scripts": "^5.0.1",
+    "socket.io-client": "^4.5.1"
+  }
+}
