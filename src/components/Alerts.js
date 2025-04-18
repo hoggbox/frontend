@@ -6,7 +6,7 @@ const Alerts = () => {
   const socket = useRef(null);
 
   useEffect(() => {
-    socket.current = io('https://pinmap-website.onrender.com');
+    socket.current = io('https://pinmap-website.onrender.com', { transports: ['websocket'] });
     socket.current.on('alert', (alert) => {
       setAlerts((prev) => [...prev, alert]);
       if (Notification.permission === 'granted') {
